@@ -5,6 +5,7 @@ use App\Http\Controllers\AlbumController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\Couple\SettingsController;
 use App\Http\Controllers\Couple\UserDashboardController;
+use App\Http\Controllers\PublicView\PublicController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,9 @@ Route::get('/', function () {
         : Inertia::render('Auth/Login');
 });
 
+
+// Public access route
+Route::get('/preview', [PublicController::class, 'preview'])->name('public.preview');
 
 Route::get('/sample-albums/{slug}', [AlbumController::class, 'showSample'])
     ->name('sample-albums.show');

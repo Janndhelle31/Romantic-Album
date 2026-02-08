@@ -58,6 +58,7 @@ class AlbumController extends Controller
         ]);
     }
 
+
     /**
      * Revised Show: Now passes global setting alongside album-specific data
      */
