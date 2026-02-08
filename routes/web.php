@@ -7,6 +7,7 @@ use App\Http\Controllers\Couple\SettingsController;
 use App\Http\Controllers\Couple\UserDashboardController;
 use App\Http\Controllers\PublicView\PublicController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -18,7 +19,7 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : Inertia::render('Auth/Login');
 });
-
+Route::post('/login-demo', [AuthenticatedSessionController::class, 'loginDemo'])->name('login.demo');
 
 // Public access route
 Route::get('/preview', [PublicController::class, 'preview'])->name('public.preview');

@@ -21,6 +21,20 @@ export default function Login({ status, canResetPassword }) {
         });
     };
 
+    // Helper to auto-fill and login for Demo
+    const loginDemo = (e) => {
+        e.preventDefault();
+        // We use the specific demo credentials
+        post(route('login'), {
+            data: {
+                email: 'Demo@gmail.com',
+                password: 'password', // Ensure this matches your demo user password
+                remember: true
+            },
+            onFinish: () => reset('password'),
+        });
+    };
+
     return (
         <GuestLayout>
             <Head title="Welcome Back ✨" />
@@ -35,6 +49,15 @@ export default function Login({ status, canResetPassword }) {
                 </motion.div>
                 <h1 className="text-3xl font-serif text-gray-800">Welcome Back</h1>
                 <p className="font-handwriting text-xl text-pink-400 mt-1">Sign in to keep creating magic</p>
+                
+                {/* THE DEMO LINK LOGIC */}
+                <button 
+                    onClick={loginDemo}
+                    className="mt-4 text-xs font-semibold text-pink-400 hover:text-pink-500 flex items-center justify-center gap-1.5 transition-colors group mx-auto"
+                >
+                    <span>Not ready to sign in? View Demo</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                </button>
             </div>
 
             {status && (
@@ -44,7 +67,6 @@ export default function Login({ status, canResetPassword }) {
             )}
 
             <form onSubmit={submit} className="space-y-5">
-                {/* EMAIL FIELD */}
                 <div>
                     <label className="block text-xs font-bold text-pink-300 uppercase tracking-widest mb-2 ml-1">
                         Email Address
@@ -54,7 +76,7 @@ export default function Login({ status, canResetPassword }) {
                         type="email"
                         name="email"
                         value={data.email}
-                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800 placeholder:text-gray-400"
+                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800"
                         autoComplete="username"
                         isFocused={true}
                         placeholder="yourname@love.com"
@@ -63,7 +85,6 @@ export default function Login({ status, canResetPassword }) {
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                {/* PASSWORD FIELD */}
                 <div>
                     <label className="block text-xs font-bold text-pink-300 uppercase tracking-widest mb-2 ml-1">
                         Password
@@ -73,7 +94,7 @@ export default function Login({ status, canResetPassword }) {
                         type="password"
                         name="password"
                         value={data.password}
-                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800 placeholder:text-gray-400"
+                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800"
                         autoComplete="current-password"
                         placeholder="••••••••"
                         onChange={(e) => setData('password', e.target.value)}
@@ -81,7 +102,6 @@ export default function Login({ status, canResetPassword }) {
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                {/* REMEMBER & FORGOT */}
                 <div className="flex items-center justify-between px-1">
                     <label className="flex items-center cursor-pointer group">
                         <Checkbox
@@ -105,7 +125,6 @@ export default function Login({ status, canResetPassword }) {
                     )}
                 </div>
 
-                {/* BUTTON */}
                 <div className="pt-2">
                     <PrimaryButton 
                         className="w-full justify-center bg-pink-400 hover:bg-pink-500 active:bg-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-pink-100 transition-all transform hover:-translate-y-0.5" 
@@ -114,7 +133,6 @@ export default function Login({ status, canResetPassword }) {
                         {processing ? 'Signing in...' : 'Sign In ✨'}
                     </PrimaryButton>
                     
-                    {/* FOOTER LINK */}
                     <p className="text-center text-sm text-gray-600 mt-6">
                         Don't have an account?{' '}
                         <Link href={route('register')} className="text-pink-400 font-bold hover:underline">
