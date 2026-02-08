@@ -2,35 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/UserdashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import LetterModal from '@/Components/LetterModal';
 
-export default function UserDashboard({ albums, letter_content }) {
+export default function UserDashboard({ albums }) {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [activeAlbum, setActiveAlbum] = useState(null);
     const [editId, setEditId] = useState(null);
-    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [showAlbumFirstPrompt, setShowAlbumFirstPrompt] = useState(albums.length === 0);
 
     // --- Forms ---
     const albumForm = useForm({ title: '', icon: '💖', description: '' });
     
-    const musicForm = useForm({ 
-        music: null, 
-        display_name: '' 
-    });
-
     const memoryForm = useForm({ 
         album_id: '', 
         image: null, 
         date_text: '', 
         note: '' 
-    });
-
-    // Updated Letter Form using the separate table prop
-    const letterForm = useForm({
-        recipient: letter_content?.recipient || '',
-        message: letter_content?.message || '',
-        closing: letter_content?.closing || '',
-        sender: letter_content?.sender || ''
     });
 
     // Handle image preview logic
@@ -42,6 +28,17 @@ export default function UserDashboard({ albums, letter_content }) {
             return () => URL.revokeObjectURL(url);
         }
     }, [memoryForm.data.image, editId]);
+
+    // Auto-select first album if available and none selected
+    useEffect(() => {
+        if (albums.length > 0 && !memoryForm.data.album_id && !editId) {
+            memoryForm.setData('album_id', albums[0].id);
+        }
+        // Hide prompt if albums exist
+        if (albums.length > 0 && showAlbumFirstPrompt) {
+            setShowAlbumFirstPrompt(false);
+        }
+    }, [albums]);
 
     // --- Actions ---
     const startEdit = (memory) => {
@@ -60,13 +57,28 @@ export default function UserDashboard({ albums, letter_content }) {
         setEditId(null);
         memoryForm.reset();
         setPreviewUrl(null);
+        // Reset to first album if available
+        if (albums.length > 0) {
+            memoryForm.setData('album_id', albums[0].id);
+        }
     };
 
     const submitMemory = (e) => {
         e.preventDefault();
         const config = {
             forceFormData: true,
-            onSuccess: () => editId ? cancelEdit() : (memoryForm.reset(), setPreviewUrl(null)),
+            onSuccess: () => {
+                if (editId) {
+                    cancelEdit();
+                } else {
+                    memoryForm.reset();
+                    setPreviewUrl(null);
+                    // Reset to first album
+                    if (albums.length > 0) {
+                        memoryForm.setData('album_id', albums[0].id);
+                    }
+                }
+            },
             preserveScroll: true
         };
         if (editId) memoryForm.post(route('manage.memory.update', editId), config);
@@ -75,25 +87,13 @@ export default function UserDashboard({ albums, letter_content }) {
 
     const submitAlbum = (e) => {
         e.preventDefault();
-        albumForm.post(route('manage.album.store'), { onSuccess: () => albumForm.reset() });
-    };
-
-    const submitMusic = (e) => {
-        e.preventDefault();
-        musicForm.post(route('music.update'), { 
-            forceFormData: true, 
+        albumForm.post(route('manage.album.store'), { 
             onSuccess: () => {
-                musicForm.reset();
-                alert("Theme song updated! ✨");
-            }
-        });
-    };
-
-    const submitLetter = (e) => {
-        e.preventDefault();
-        letterForm.post(route('letter.update'), {
-            preserveScroll: true,
-            onSuccess: () => alert("Letter content saved! 💌")
+                albumForm.reset();
+                // Hide the prompt once an album is created
+                setShowAlbumFirstPrompt(false);
+            },
+            preserveScroll: true
         });
     };
 
@@ -103,270 +103,359 @@ export default function UserDashboard({ albums, letter_content }) {
         }
     };
 
+    const deleteAlbum = (id) => {
+        if (confirm('Delete this album and all its memories? This cannot be undone.')) {
+            router.delete(route('manage.album.destroy', id));
+        }
+    };
+
     return (
         <div className="max-w-screen-xl mx-auto px-4 pb-20">
             <Head title="Creator Studio" />
             
             <header className="mb-8 mt-6">
-                <h1 className="text-3xl md:text-4xl font-serif text-gray-800">The Creator Studio</h1>
-                <p className="font-handwriting text-lg text-pink-400 mt-1">Refine your sunshine moments...</p>
+                <h1 className="text-3xl md:text-4xl font-serif text-gray-800">Memory Manager</h1>
+                <p className="font-handwriting text-lg text-pink-400 mt-1">Organize and cherish your special moments...</p>
             </header>
+
+            {/* ALBUM FIRST PROMPT FOR NEW USERS */}
+            <AnimatePresence>
+                {showAlbumFirstPrompt && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="mb-6 bg-gradient-to-r from-pink-50 to-rose-50 border-2 border-pink-200 rounded-2xl p-6 md:p-8 text-center"
+                    >
+                        <div className="flex flex-col items-center">
+                            <span className="text-5xl mb-4">📂</span>
+                            <h2 className="text-xl font-bold text-gray-800 mb-2">Create Your First Album</h2>
+                            <p className="text-gray-600 mb-6 max-w-md">
+                                Start by creating an album to organize your memories. 
+                                You can create albums for different themes like "Vacations", "Anniversaries", or "Everyday Moments".
+                            </p>
+                            
+                            {/* Quick Album Creation Form */}
+                            <form onSubmit={submitAlbum} className="w-full max-w-md bg-white p-4 rounded-xl shadow-sm">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input 
+                                        type="text" 
+                                        value={albumForm.data.title} 
+                                        onChange={e => albumForm.setData('title', e.target.value)} 
+                                        className="flex-1 border border-pink-100 rounded-xl p-4 text-sm focus:ring-2 focus:ring-pink-200 focus:outline-none" 
+                                        placeholder="Album Title (e.g. Our First Year)" 
+                                        required 
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={albumForm.data.icon} 
+                                            onChange={e => albumForm.setData('icon', e.target.value)} 
+                                            className="w-20 border border-pink-100 rounded-xl p-4 text-center text-lg focus:ring-2 focus:ring-pink-200 focus:outline-none" 
+                                            placeholder="💖"
+                                        />
+                                        <button 
+                                            type="submit" 
+                                            disabled={albumForm.processing}
+                                            className="bg-pink-500 text-white px-6 py-4 rounded-xl font-bold text-sm active:scale-95 transition-all hover:bg-pink-600"
+                                        >
+                                            {albumForm.processing ? 'Creating...' : 'Create'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-3 text-center">
+                                    After creating your first album, you can start adding memories!
+                                </p>
+                            </form>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                 
                 {/* 1. MEMORY FORM */}
                 <motion.div 
                     animate={{ borderColor: editId ? '#60a5fa' : '#fbcfe8' }}
-                    className="bg-white p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border-2 transition-colors duration-500"
+                    className={`bg-white p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border-2 transition-colors duration-500 ${albums.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}
                 >
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
-                            <span className={`p-2 rounded-lg text-sm ${editId ? 'bg-blue-50' : 'bg-yellow-50'}`}>
-                                {editId ? '📝' : '📸'}
-                            </span> 
-                            {editId ? 'Edit Memory' : 'Add a Memory'}
-                        </h2>
-                        {editId && (
-                            <button onClick={cancelEdit} className="text-xs font-bold text-red-400 bg-red-50 px-3 py-1 rounded-full">
-                                Cancel
-                            </button>
-                        )}
-                    </div>
-                    
-                    <form onSubmit={submitMemory} className="space-y-4">
-                        <select 
-                            value={memoryForm.data.album_id} 
-                            onChange={e => memoryForm.setData('album_id', e.target.value)} 
-                            className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-2 focus:ring-pink-200 focus:outline-none"
-                            required
-                        >
-                            <option value="">Destination Album</option>
-                            {albums.map(a => <option key={a.id} value={a.id}>{a.icon} {a.title}</option>)}
-                        </select>
-                        
-                        <div className={`group relative border-2 border-dashed rounded-xl p-6 text-center transition-all bg-gray-50/30 overflow-hidden ${editId ? 'border-blue-200' : 'border-gray-100'}`}>
-                            <input type="file" onChange={e => memoryForm.setData('image', e.target.files[0])} className="hidden" id="dash-photo" accept="image/*" />
-                            <label htmlFor="dash-photo" className="cursor-pointer block active:scale-95 transition-transform">
-                                {previewUrl ? (
-                                    <div className="relative">
-                                        <img src={previewUrl} className="mx-auto h-48 md:h-56 object-cover rounded-lg shadow-md mb-2 border-4 border-white" alt="Preview" />
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${editId ? 'text-blue-500' : 'text-pink-500'}`}>
-                                            Tap to Change Photo
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center py-4">
-                                        <span className="text-5xl mb-2">🖼️</span>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Photo</span>
-                                    </div>
+                    {albums.length === 0 ? (
+                        <div className="text-center py-8">
+                            <span className="text-4xl block mb-4">📸</span>
+                            <p className="text-gray-500 font-medium">Create an album first to add memories</p>
+                            <p className="text-sm text-gray-400 mt-2">Use the form on the right to create your first album</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+                                    <span className={`p-2 rounded-lg text-sm ${editId ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+                                        {editId ? '📝' : '📸'}
+                                    </span> 
+                                    {editId ? 'Edit Memory' : 'Add a Memory'}
+                                </h2>
+                                {editId && (
+                                    <button onClick={cancelEdit} className="text-xs font-bold text-red-400 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100 transition-colors">
+                                        Cancel
+                                    </button>
                                 )}
-                            </label>
-                        </div>
+                            </div>
+                            
+                            <form onSubmit={submitMemory} className="space-y-4">
+                                <select 
+                                    value={memoryForm.data.album_id} 
+                                    onChange={e => memoryForm.setData('album_id', e.target.value)} 
+                                    className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-2 focus:ring-pink-200 focus:outline-none"
+                                    required
+                                >
+                                    <option value="">Select Album</option>
+                                    {albums.map(a => (
+                                        <option key={a.id} value={a.id}>{a.icon} {a.title}</option>
+                                    ))}
+                                </select>
+                                
+                                <div className={`group relative border-2 border-dashed rounded-xl p-6 text-center transition-all bg-gray-50/30 overflow-hidden ${editId ? 'border-blue-200' : 'border-gray-100'}`}>
+                                    <input 
+                                        type="file" 
+                                        onChange={e => memoryForm.setData('image', e.target.files[0])} 
+                                        className="hidden" 
+                                        id="dash-photo" 
+                                        accept="image/*" 
+                                        required={!editId}
+                                    />
+                                    <label htmlFor="dash-photo" className="cursor-pointer block active:scale-95 transition-transform">
+                                        {previewUrl ? (
+                                            <div className="relative">
+                                                <img src={previewUrl} className="mx-auto h-48 md:h-56 object-cover rounded-lg shadow-md mb-2 border-4 border-white" alt="Preview" />
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider ${editId ? 'text-blue-500' : 'text-pink-500'}`}>
+                                                    Tap to Change Photo
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center py-4">
+                                                <span className="text-5xl mb-2">🖼️</span>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Photo</span>
+                                                <span className="text-xs text-gray-500 mt-2">JPG, PNG (max 5MB)</span>
+                                            </div>
+                                        )}
+                                    </label>
+                                </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input 
-                                type="text" 
-                                value={memoryForm.data.date_text} 
-                                onChange={e => memoryForm.setData('date_text', e.target.value)} 
-                                className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
-                                placeholder="Date (e.g. Aug 12)" 
-                            />
-                            <button 
-                                type="submit" 
-                                disabled={memoryForm.processing} 
-                                className={`text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 ${
-                                    editId ? 'bg-blue-500 shadow-blue-100' : 'bg-pink-400 shadow-pink-100'
-                                }`}
-                            >
-                                {memoryForm.processing ? 'Saving...' : (editId ? 'Update ✨' : 'Save Memory ✨')}
-                            </button>
-                        </div>
-                        <textarea 
-                            value={memoryForm.data.note} 
-                            onChange={e => memoryForm.setData('note', e.target.value)} 
-                            className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 h-28 text-sm focus:ring-pink-200 focus:outline-none" 
-                            placeholder="Write a sweet note..." 
-                        />
-                    </form>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <input 
+                                        type="text" 
+                                        value={memoryForm.data.date_text} 
+                                        onChange={e => memoryForm.setData('date_text', e.target.value)} 
+                                        className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
+                                        placeholder="Date (e.g. Aug 12, 2023)" 
+                                        required
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        disabled={memoryForm.processing} 
+                                        className={`text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 ${
+                                            editId ? 'bg-blue-500 shadow-blue-100 hover:bg-blue-600' : 'bg-pink-400 shadow-pink-100 hover:bg-pink-500'
+                                        }`}
+                                    >
+                                        {memoryForm.processing ? 'Saving...' : (editId ? 'Update ✨' : 'Save Memory ✨')}
+                                    </button>
+                                </div>
+                                <textarea 
+                                    value={memoryForm.data.note} 
+                                    onChange={e => memoryForm.setData('note', e.target.value)} 
+                                    className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 h-28 text-sm focus:ring-pink-200 focus:outline-none" 
+                                    placeholder="Write a sweet note (optional)..." 
+                                />
+                            </form>
+                        </>
+                    )}
                 </motion.div>
 
+                {/* 2. NEW ALBUM FORM (Always visible) */}
                 <div className="space-y-6">
-                    {/* 2. LETTER CONTENT FORM */}
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
-                                <span className="p-2 bg-pink-50 rounded-lg text-sm">💌</span> Letter Content
+                                <span className="p-2 bg-pink-50 rounded-lg text-sm">📂</span> 
+                                {albums.length === 0 ? 'Create First Album' : 'New Album'}
                             </h2>
-                            <button 
-                                onClick={() => setIsPreviewOpen(true)}
-                                className="text-xs font-bold text-pink-500 bg-pink-50 px-3 py-1 rounded-full hover:bg-pink-100 transition-colors"
-                            >
-                                Preview ✨
-                            </button>
+                            {albums.length > 0 && (
+                                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+                                    {albums.length} album{albums.length !== 1 ? 's' : ''}
+                                </span>
+                            )}
                         </div>
-                        <form onSubmit={submitLetter} className="space-y-3">
-                            <input 
-                                type="text" 
-                                value={letterForm.data.recipient} 
-                                onChange={e => letterForm.setData('recipient', e.target.value)} 
-                                className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
-                                placeholder="To: (e.g. My Dearest)" 
-                                required 
-                            />
-                            <textarea 
-                                value={letterForm.data.message} 
-                                onChange={e => letterForm.setData('message', e.target.value)} 
-                                className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 h-32 text-sm focus:ring-pink-200 focus:outline-none" 
-                                placeholder="Your heart-felt message..." 
-                                required 
-                            />
-                            <div className="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    value={letterForm.data.closing} 
-                                    onChange={e => letterForm.setData('closing', e.target.value)} 
-                                    className="w-1/2 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
-                                    placeholder="Closing (e.g. Forever yours)" 
-                                />
-                                <input 
-                                    type="text" 
-                                    value={letterForm.data.sender} 
-                                    onChange={e => letterForm.setData('sender', e.target.value)} 
-                                    className="w-1/2 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm font-handwriting focus:ring-pink-200 focus:outline-none" 
-                                    placeholder="From: (Your Name)" 
-                                />
-                            </div>
-                            <button 
-                                type="submit" 
-                                disabled={letterForm.processing}
-                                className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-sm active:scale-95 transition-all shadow-md"
-                            >
-                                {letterForm.processing ? 'Saving...' : 'Update Letter 💌'}
-                            </button>
-                        </form>
-                    </div>
-
-                    {/* 3. NEW ALBUM FORM */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50">
-                        <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                            <span className="p-2 bg-pink-50 rounded-lg text-sm">📂</span> New Album
-                        </h2>
                         <form onSubmit={submitAlbum} className="flex flex-col sm:flex-row gap-2">
-                            <input type="text" value={albumForm.data.title} onChange={e => albumForm.setData('title', e.target.value)} className="flex-1 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" placeholder="Title..." required />
-                            <div className="flex gap-2">
-                                <input type="text" value={albumForm.data.icon} onChange={e => albumForm.setData('icon', e.target.value)} className="w-20 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-center focus:ring-pink-200 focus:outline-none" />
-                                <button type="submit" disabled={albumForm.processing} className="flex-1 sm:flex-none bg-gray-900 text-white px-6 rounded-xl font-bold text-sm h-[54px] active:scale-95 transition-all">Create</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* 4. MUSIC SETTINGS FORM */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50">
-                        <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                            <span className="p-2 bg-blue-50 rounded-lg text-sm">🎵</span> Music Theme
-                        </h2>
-                        <form onSubmit={submitMusic} className="space-y-3">
                             <input 
                                 type="text" 
-                                value={musicForm.data.display_name}
-                                onChange={e => musicForm.setData('display_name', e.target.value)}
-                                className="w-full border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-blue-200 focus:outline-none" 
-                                placeholder="Song Name (e.g. Our Music)" 
-                                required
+                                value={albumForm.data.title} 
+                                onChange={e => albumForm.setData('title', e.target.value)} 
+                                className="flex-1 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
+                                placeholder={albums.length === 0 ? "Our First Year Together..." : "New Album Title..."} 
+                                required 
                             />
-                            <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="flex gap-2">
                                 <input 
-                                    type="file" 
-                                    onChange={e => musicForm.setData('music', e.target.files[0])} 
-                                    className="flex-1 text-xs file:bg-pink-50 file:border-0 file:rounded-lg p-3 bg-gray-50 rounded-xl" 
-                                    accept="audio/mp3,audio/wav" 
-                                    required
+                                    type="text" 
+                                    value={albumForm.data.icon} 
+                                    onChange={e => albumForm.setData('icon', e.target.value)} 
+                                    className="w-20 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-center text-lg focus:ring-pink-200 focus:outline-none" 
                                 />
                                 <button 
                                     type="submit" 
-                                    disabled={musicForm.processing}
-                                    className="bg-blue-400 text-white px-6 py-4 rounded-xl font-bold text-sm active:scale-95 disabled:opacity-50 transition-all"
+                                    disabled={albumForm.processing} 
+                                    className="flex-1 sm:flex-none bg-gray-900 text-white px-6 rounded-xl font-bold text-sm h-[54px] active:scale-95 transition-all hover:bg-black"
                                 >
-                                    {musicForm.processing ? 'Uploading...' : 'Upload'}
+                                    {albumForm.processing ? 'Creating...' : albums.length === 0 ? 'Start Journey' : 'Create'}
                                 </button>
                             </div>
                         </form>
+                        {albums.length === 0 && (
+                            <p className="text-xs text-gray-400 mt-3">
+                                Tip: Create albums like "Vacations", "Anniversaries", or "Date Nights"
+                            </p>
+                        )}
                     </div>
+
+                    {/* Quick Stats Section */}
+                    {albums.length > 0 && (
+                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50">
+                            <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                                <span className="p-2 bg-green-50 rounded-lg text-sm">📊</span> 
+                                Memory Stats
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="text-center p-4 bg-pink-50 rounded-xl">
+                                    <div className="text-2xl font-bold text-pink-600">{albums.length}</div>
+                                    <div className="text-xs text-gray-600">Albums</div>
+                                </div>
+                                <div className="text-center p-4 bg-blue-50 rounded-xl">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                        {albums.reduce((total, album) => total + (album.memories?.length || 0), 0)}
+                                    </div>
+                                    <div className="text-xs text-gray-600">Total Memories</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* --- ALBUM PREVIEW SECTION --- */}
-            <section className="mt-8">
-                <h3 className="text-xl font-serif text-gray-800 mb-4 px-2">Collections</h3>
-                <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar snap-x">
-                    {albums.map(album => (
-                        <motion.button 
-                            key={album.id} 
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => setActiveAlbum(activeAlbum === album.id ? null : album.id)}
-                            className={`flex-shrink-0 w-32 p-4 rounded-[1.5rem] border transition-all snap-start ${
-                                activeAlbum === album.id ? 'bg-pink-500 border-pink-500 text-white shadow-lg' : 'bg-white border-pink-50 text-gray-600'
-                            }`}
-                        >
-                            <span className="text-2xl block mb-1">{album.icon}</span>
-                            <h4 className="font-bold text-xs truncate">{album.title}</h4>
-                        </motion.button>
-                    ))}
-                </div>
+            {/* --- ALBUM COLLECTION SECTION --- */}
+            {albums.length > 0 && (
+                <section className="mt-8">
+                    <div className="flex justify-between items-center mb-4 px-2">
+                        <h3 className="text-xl font-serif text-gray-800">Your Collections</h3>
+                        <span className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
+                            {albums.reduce((total, album) => total + (album.memories?.length || 0), 0)} memories total
+                        </span>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar snap-x">
+                        {albums.map(album => (
+                            <motion.div 
+                                key={album.id} 
+                                className="flex-shrink-0 w-32 snap-start relative"
+                            >
+                                <motion.button 
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setActiveAlbum(activeAlbum === album.id ? null : album.id)}
+                                    className={`w-full p-4 rounded-[1.5rem] border transition-all ${
+                                        activeAlbum === album.id ? 'bg-pink-500 border-pink-500 text-white shadow-lg' : 'bg-white border-pink-50 text-gray-600 hover:bg-pink-50'
+                                    }`}
+                                >
+                                    <span className="text-2xl block mb-1">{album.icon}</span>
+                                    <h4 className="font-bold text-xs truncate">{album.title}</h4>
+                                    <span className="text-[10px] mt-1 opacity-70">
+                                        {album.memories?.length || 0} item{album.memories?.length !== 1 ? 's' : ''}
+                                    </span>
+                                </motion.button>
+                                
+                                {/* Delete album button (only if empty) */}
+                                {(!album.memories || album.memories.length === 0) && (
+                                    <button
+                                        onClick={() => deleteAlbum(album.id)}
+                                        className="absolute -top-2 -right-2 bg-red-100 text-red-500 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-200 transition-colors"
+                                        title="Delete empty album"
+                                    >
+                                        ×
+                                    </button>
+                                )}
+                            </motion.div>
+                        ))}
+                    </div>
 
-                {/* --- MEMORY DRAWER --- */}
-                <AnimatePresence mode="wait">
-                    {activeAlbum && (
-                        <motion.div 
-                            initial={{ opacity: 0, height: 0 }} 
-                            animate={{ opacity: 1, height: 'auto' }} 
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-4 overflow-hidden"
-                        >
-                            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-pink-100 shadow-sm">
-                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x">
+                    {/* --- MEMORY DRAWER --- */}
+                    <AnimatePresence mode="wait">
+                        {activeAlbum && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }} 
+                                animate={{ opacity: 1, height: 'auto' }} 
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-4 overflow-hidden"
+                            >
+                                <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-pink-100 shadow-sm">
+                                    <div className="flex items-center justify-between mb-4 px-2">
+                                        <h4 className="font-bold text-gray-700 flex items-center gap-2">
+                                            <span className="text-pink-500">
+                                                {albums.find(a => a.id === activeAlbum)?.icon}
+                                            </span>
+                                            {albums.find(a => a.id === activeAlbum)?.title}
+                                        </h4>
+                                        <span className="text-xs text-gray-500">
+                                            {albums.find(a => a.id === activeAlbum)?.memories?.length || 0} memories
+                                        </span>
+                                    </div>
+                                    
                                     {albums.find(a => a.id === activeAlbum)?.memories?.length > 0 ? (
-                                        albums.find(a => a.id === activeAlbum).memories.map((memory) => (
-                                            <div key={memory.id} className="min-w-[160px] max-w-[160px] relative snap-start group">
-                                                <div className="bg-white p-2 pb-6 shadow-sm border border-gray-100 rotate-1 rounded-sm">
-                                                    <img src={`/storage/${memory.image_path}`} className="w-full h-32 object-cover rounded-sm mb-2" />
-                                                    <p className="font-handwriting text-[10px] text-gray-500 truncate">{memory.date_text}</p>
-                                                </div>
-                                                
-                                                <button 
-                                                    onClick={() => startEdit(memory)}
-                                                    className="absolute top-0 left-0 bg-blue-500 text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg z-10 -translate-x-2 -translate-y-2 active:scale-90 transition-transform"
-                                                >
-                                                    ✎
-                                                </button>
+                                        <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar snap-x">
+                                            {albums.find(a => a.id === activeAlbum).memories.map((memory) => (
+                                                <div key={memory.id} className="min-w-[160px] max-w-[160px] relative snap-start group">
+                                                    <div className="bg-white p-2 pb-6 shadow-sm border border-gray-100 rotate-1 rounded-sm">
+                                                        <img src={`/storage/${memory.image_path}`} className="w-full h-32 object-cover rounded-sm mb-2" alt="Memory" />
+                                                        <p className="font-handwriting text-[10px] text-gray-500 truncate">{memory.date_text}</p>
+                                                    </div>
+                                                    
+                                                    <button 
+                                                        onClick={() => startEdit(memory)}
+                                                        className="absolute top-0 left-0 bg-blue-500 text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg z-10 -translate-x-2 -translate-y-2 active:scale-90 transition-transform hover:bg-blue-600"
+                                                    >
+                                                        ✎
+                                                    </button>
 
-                                                <button 
-                                                    onClick={() => deleteMemory(memory.id)}
-                                                    className="absolute top-0 right-0 bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg z-10 translate-x-2 -translate-y-2 active:scale-90 transition-transform"
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        ))
+                                                    <button 
+                                                        onClick={() => deleteMemory(memory.id)}
+                                                        className="absolute top-0 right-0 bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg z-10 translate-x-2 -translate-y-2 active:scale-90 transition-transform hover:bg-red-600"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     ) : (
-                                        <p className="text-sm text-gray-400 italic py-6 px-4 w-full text-center">This collection is currently empty...</p>
+                                        <div className="text-center py-8">
+                                            <span className="text-4xl block mb-3">🖼️</span>
+                                            <p className="text-gray-500 font-medium">No memories yet</p>
+                                            <p className="text-sm text-gray-400 mt-1">Add your first memory using the form above!</p>
+                                            {memoryForm.data.album_id !== activeAlbum && (
+                                                <button
+                                                    onClick={() => {
+                                                        memoryForm.setData('album_id', activeAlbum);
+                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                    }}
+                                                    className="mt-3 text-sm bg-pink-100 text-pink-600 px-4 py-2 rounded-full hover:bg-pink-200 transition-colors"
+                                                >
+                                                    Select this album to add memories
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </section>
-
-            {/* PREVIEW MODAL */}
-            <AnimatePresence>
-                {isPreviewOpen && (
-                    <LetterModal 
-                        onClose={() => setIsPreviewOpen(false)} 
-                        data={letterForm.data} 
-                    />
-                )}
-            </AnimatePresence>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </section>
+            )}
         </div>
     );
 }

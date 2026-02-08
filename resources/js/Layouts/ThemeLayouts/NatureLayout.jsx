@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
-// Added your NatureHearts import
 import NatureHearts from "@/Components/ThemeComponents/Nature/Hearts";
 
 const natureElements = [
@@ -12,7 +11,12 @@ const natureElements = [
     { id: 4, icon: "🌼", top: "85%", left: "75%", rotate: -10, duration: 28 },
 ];
 
-export default function NatureLayout({ children, current_music, letter_content }) {
+export default function NatureLayout({ 
+    children, 
+    current_music, 
+    letter_content, 
+    hideControls = false // ADD THIS PROP
+}) {
     const [isEntryClicked, setIsEntryClicked] = useState(() => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('natureOpened') === 'true';
         return false;
@@ -29,6 +33,14 @@ export default function NatureLayout({ children, current_music, letter_content }
         setIsEntryClicked(true);
         sessionStorage.setItem('natureOpened', 'true');
     };
+
+    // Auto-show content if hideControls is true (for album pages)
+    if (hideControls && !showContent) {
+        setShowContent(true);
+        if (!isEntryClicked) {
+            setIsEntryClicked(true);
+        }
+    }
 
     return (
         <div className="font-serif bg-[#F4F9F1] antialiased selection:bg-green-200 min-h-screen relative overflow-x-hidden">
@@ -53,7 +65,7 @@ export default function NatureLayout({ children, current_music, letter_content }
                 ))}
             </div>
 
-            {/* 2. NATURE HEARTS (Added here) */}
+            {/* 2. NATURE HEARTS */}
             <AnimatePresence>
                 {showContent && (
                     <motion.div 
@@ -67,42 +79,46 @@ export default function NatureLayout({ children, current_music, letter_content }
                 )}
             </AnimatePresence>
 
-            {/* 3. MUSIC PLAYER */}
-            <MusicPlayer 
-                url={current_music?.url} 
-                displayName={current_music?.display_name}
-                skipCountdown={showContent} 
-                start={isEntryClicked} 
-                onComplete={() => setShowContent(true)} 
-                theme="nature"
-            />
+            {/* 3. MUSIC PLAYER - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <MusicPlayer 
+                    url={current_music?.url} 
+                    displayName={current_music?.display_name}
+                    skipCountdown={showContent} 
+                    start={isEntryClicked} 
+                    onComplete={() => setShowContent(true)} 
+                    theme="nature"
+                />
+            )}
 
-            {/* 4. ENTRANCE SCREEN */}
-            <AnimatePresence>
-                {!isEntryClicked && (
-                    <motion.div 
-                        exit={{ opacity: 0, scale: 1.05 }}
-                        className="fixed inset-0 z-[400] bg-[#E8F3E5] flex flex-col items-center justify-center p-6 text-center"
-                    >
-                        <motion.h1 className="text-5xl md:text-7xl text-emerald-900 mb-4">Our Secret Garden</motion.h1>
-                        <button 
-                            onClick={handleEntry}
-                            className="px-10 py-4 bg-emerald-700 text-white rounded-full text-xl shadow-xl hover:bg-emerald-800 transition-all"
+            {/* 4. ENTRANCE SCREEN - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <AnimatePresence>
+                    {!isEntryClicked && (
+                        <motion.div 
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            className="fixed inset-0 z-[400] bg-[#E8F3E5] flex flex-col items-center justify-center p-6 text-center"
                         >
-                            Enter Our World 🌿
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <motion.h1 className="text-5xl md:text-7xl text-emerald-900 mb-4">Our Secret Garden</motion.h1>
+                            <button 
+                                onClick={handleEntry}
+                                className="px-10 py-4 bg-emerald-700 text-white rounded-full text-xl shadow-xl hover:bg-emerald-800 transition-all"
+                            >
+                                Enter Our World 🌿
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            )}
 
             {/* 5. MAIN CONTENT */}
             <main className={`relative z-10 transition-opacity duration-1000 ${showContent ? "opacity-100" : "opacity-0"}`}>
                 {children}
             </main>
 
-            {/* 6. LETTER TRIGGER */}
+            {/* 6. LETTER TRIGGER - CONDITIONAL RENDER */}
             <AnimatePresence>
-                {showContent && (
+                {showContent && !hideControls && (
                     <motion.button
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -114,7 +130,8 @@ export default function NatureLayout({ children, current_music, letter_content }
                 )}
             </AnimatePresence>
 
-            {isLetterOpen && (
+            {/* 7. LETTER MODAL - CONDITIONAL RENDER */}
+            {isLetterOpen && !hideControls && (
                 <LetterModal 
                     onClose={() => setIsLetterOpen(false)} 
                     data={letter_content} 

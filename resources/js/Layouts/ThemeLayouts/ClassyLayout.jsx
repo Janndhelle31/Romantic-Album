@@ -28,7 +28,12 @@ const couplePolaroids = [
     },
 ];
 
-export default function ClassyLayout({ children, current_music, letter_content }) {
+export default function ClassyLayout({ 
+    children, 
+    current_music, 
+    letter_content, 
+    hideControls = false // ADD THIS PROP
+}) {
     const [isEntryClicked, setIsEntryClicked] = useState(() => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('classyOpened') === 'true';
         return false;
@@ -45,6 +50,14 @@ export default function ClassyLayout({ children, current_music, letter_content }
         setIsEntryClicked(true);
         sessionStorage.setItem('classyOpened', 'true');
     };
+
+    // Auto-show content if hideControls is true (for album pages)
+    if (hideControls && !showContent) {
+        setShowContent(true);
+        if (!isEntryClicked) {
+            setIsEntryClicked(true);
+        }
+    }
 
     return (
         <div className="font-serif bg-[#FAF9F6] text-[#1A1A1A] antialiased selection:bg-[#E5D3B3] min-h-screen relative overflow-x-hidden">
@@ -83,66 +96,71 @@ export default function ClassyLayout({ children, current_music, letter_content }
                 {showContent && <ClassyHearts />}
             </AnimatePresence>
 
-            <MusicPlayer 
-                url={current_music?.url} 
-                displayName={current_music?.display_name}
-                skipCountdown={showContent} 
-                start={isEntryClicked} 
-                onComplete={() => setShowContent(true)} 
-                theme="classy"
-            />
+            {/* 2. MUSIC PLAYER - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <MusicPlayer 
+                    url={current_music?.url} 
+                    displayName={current_music?.display_name}
+                    skipCountdown={showContent} 
+                    start={isEntryClicked} 
+                    onComplete={() => setShowContent(true)} 
+                    theme="classy"
+                />
+            )}
 
-            {/* 2. EDITORIAL ENTRANCE */}
-            <AnimatePresence>
-                {!isEntryClicked && (
-                    <motion.div 
-                        exit={{ opacity: 0, y: -30 }}
-                        transition={{ duration: 1.5, ease: [0.19, 1, 0.22, 1] }}
-                        className="fixed inset-0 z-[400] bg-white flex flex-col items-center justify-center p-6 text-center"
-                    >
-                        <div className="relative group p-20">
-                            {/* Fine Detail Lines */}
-                            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.5, duration: 1 }} className="absolute top-0 left-0 right-0 h-[1px] bg-[#E5D3B3] origin-left" />
-                            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.5, duration: 1 }} className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#E5D3B3] origin-right" />
-                            
-                            <motion.span 
-                                initial={{ opacity: 0, letterSpacing: "0.8em" }}
-                                animate={{ opacity: 1, letterSpacing: "0.5em" }}
-                                className="block mb-8 text-[10px] uppercase font-light text-[#A68966]"
-                            >
-                                A Private Collection
-                            </motion.span>
-                            
-                            <motion.h1 
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="text-6xl md:text-8xl font-light italic mb-12 tracking-tighter"
-                            >
-                                Two Souls, One Story
-                            </motion.h1>
+            {/* 3. EDITORIAL ENTRANCE - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <AnimatePresence>
+                    {!isEntryClicked && (
+                        <motion.div 
+                            exit={{ opacity: 0, y: -30 }}
+                            transition={{ duration: 1.5, ease: [0.19, 1, 0.22, 1] }}
+                            className="fixed inset-0 z-[400] bg-white flex flex-col items-center justify-center p-6 text-center"
+                        >
+                            <div className="relative group p-20">
+                                {/* Fine Detail Lines */}
+                                <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.5, duration: 1 }} className="absolute top-0 left-0 right-0 h-[1px] bg-[#E5D3B3] origin-left" />
+                                <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.5, duration: 1 }} className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#E5D3B3] origin-right" />
+                                
+                                <motion.span 
+                                    initial={{ opacity: 0, letterSpacing: "0.8em" }}
+                                    animate={{ opacity: 1, letterSpacing: "0.5em" }}
+                                    className="block mb-8 text-[10px] uppercase font-light text-[#A68966]"
+                                >
+                                    A Private Collection
+                                </motion.span>
+                                
+                                <motion.h1 
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-6xl md:text-8xl font-light italic mb-12 tracking-tighter"
+                                >
+                                    Two Souls, One Story
+                                </motion.h1>
 
-                            <motion.button 
-                                whileHover={{ scale: 1.05 }}
-                                onClick={handleEntry}
-                                className="relative z-10 px-14 py-4 bg-[#1A1A1A] text-white text-[9px] uppercase tracking-[0.5em] overflow-hidden group transition-all"
-                            >
-                                <span className="relative z-10">Curate the Memories</span>
-                                <div className="absolute inset-0 bg-[#A68966] translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                            </motion.button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    onClick={handleEntry}
+                                    className="relative z-10 px-14 py-4 bg-[#1A1A1A] text-white text-[9px] uppercase tracking-[0.5em] overflow-hidden group transition-all"
+                                >
+                                    <span className="relative z-10">Curate the Memories</span>
+                                    <div className="absolute inset-0 bg-[#A68966] translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            )}
 
-            {/* 3. MAIN CONTENT (DASHBOARD) */}
+            {/* 4. MAIN CONTENT (DASHBOARD) */}
             <main className={`relative z-10 transition-opacity duration-[2000ms] ${showContent ? "opacity-100" : "opacity-0"}`}>
                 {children}
             </main>
 
-            {/* 4. REFINED LETTER TRIGGER */}
+            {/* 5. REFINED LETTER TRIGGER - CONDITIONAL RENDER */}
             <AnimatePresence>
-                {showContent && (
+                {showContent && !hideControls && (
                     <motion.button
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -158,7 +176,8 @@ export default function ClassyLayout({ children, current_music, letter_content }
                 )}
             </AnimatePresence>
 
-            {isLetterOpen && (
+            {/* 6. LETTER MODAL - CONDITIONAL RENDER */}
+            {isLetterOpen && !hideControls && (
                 <LetterModal 
                     onClose={() => setIsLetterOpen(false)} 
                     data={letter_content} 

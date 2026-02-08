@@ -3,10 +3,10 @@ import DefaultLayout from "@/Layouts/ThemeLayouts/DefaultLayout";
 import MidnightLayout from "@/Layouts/ThemeLayouts/MidnightLayout";
 import ClassyLayout from "@/Layouts/ThemeLayouts/ClassyLayout";
 import VintageLayout from "@/Layouts/ThemeLayouts/VintageLayout";
-import NatureLayout from "@/Layouts/ThemeLayouts/NatureLayout"; // New Import
+import NatureLayout from "@/Layouts/ThemeLayouts/NatureLayout";
 import { usePage, router } from "@inertiajs/react";
 
-export default function AppLayout({ children }) {
+export default function AppLayout({ children, hideControls = false }) {
     const { auth, current_music, letter_content } = usePage().props;
     
     // Determine the initial theme
@@ -59,7 +59,8 @@ export default function AppLayout({ children }) {
         updateTheme,
         current_music,
         letter_content,
-        auth
+        auth,
+        hideControls // Add hideControls to props
     };
 
     // Render the selected theme shell
@@ -71,7 +72,7 @@ export default function AppLayout({ children }) {
         case 'vintage':
             return <VintageLayout {...layoutProps} />;
         case 'nature':
-            return <NatureLayout {...layoutProps} />; // New Case
+            return <NatureLayout {...layoutProps} />;
         default:
             return <DefaultLayout {...layoutProps} />;
     }

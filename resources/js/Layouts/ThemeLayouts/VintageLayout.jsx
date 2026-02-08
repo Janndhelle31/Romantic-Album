@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
-import VintageHearts from "@/Components/ThemeComponents/Vintage/Hearts"; // Optional: Sepia-toned hearts or dust particles
+import VintageHearts from "@/Components/ThemeComponents/Vintage/Hearts";
 
 const ephemera = [
     { id: 1, content: "📜", top: "8%", left: "12%", rotate: -10, duration: 25 },
@@ -12,7 +12,12 @@ const ephemera = [
     { id: 5, content: "🎞️", top: "50%", left: "5%", rotate: -20, duration: 35 },
 ];
 
-export default function VintageLayout({ children, current_music, letter_content }) {
+export default function VintageLayout({ 
+    children, 
+    current_music, 
+    letter_content, 
+    hideControls = false // ADD THIS PROP
+}) {
     const [isEntryClicked, setIsEntryClicked] = useState(() => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('vintageOpened') === 'true';
         return false;
@@ -29,6 +34,14 @@ export default function VintageLayout({ children, current_music, letter_content 
         setIsEntryClicked(true);
         sessionStorage.setItem('vintageOpened', 'true');
     };
+
+    // Auto-show content if hideControls is true (for album pages)
+    if (hideControls && !showContent) {
+        setShowContent(true);
+        if (!isEntryClicked) {
+            setIsEntryClicked(true);
+        }
+    }
 
     return (
         /* The background uses a 'sepia' paper color and a subtle noise texture */
@@ -66,57 +79,62 @@ export default function VintageLayout({ children, current_music, letter_content 
                 )}
             </AnimatePresence>
 
-            <MusicPlayer 
-                url={current_music?.url} 
-                displayName={current_music?.display_name}
-                skipCountdown={showContent} 
-                start={isEntryClicked} 
-                onComplete={() => setShowContent(true)} 
-                theme="vintage"
-            />
+            {/* 4. MUSIC PLAYER - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <MusicPlayer 
+                    url={current_music?.url} 
+                    displayName={current_music?.display_name}
+                    skipCountdown={showContent} 
+                    start={isEntryClicked} 
+                    onComplete={() => setShowContent(true)} 
+                    theme="vintage"
+                />
+            )}
 
-            {/* 4. ENTRANCE SCREEN (The "Envelop" opening) */}
-            <AnimatePresence>
-                {!isEntryClicked && (
-                    <motion.div 
-                        exit={{ y: "-100%", opacity: 0 }}
-                        transition={{ duration: 1.2, ease: [0.43, 0.13, 0.23, 0.96] }}
-                        className="fixed inset-0 z-[400] bg-[#D2B48C] flex flex-col items-center justify-center p-6 text-center shadow-[inset_0_0_100px_rgba(0,0,0,0.2)]"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9 }}
-                            animate={{ scale: 1 }}
-                            className="border-2 border-[#8B4513] p-8 md:p-12 relative"
+            {/* 5. ENTRANCE SCREEN - CONDITIONAL RENDER */}
+            {!hideControls && (
+                <AnimatePresence>
+                    {!isEntryClicked && (
+                        <motion.div 
+                            exit={{ y: "-100%", opacity: 0 }}
+                            transition={{ duration: 1.2, ease: [0.43, 0.13, 0.23, 0.96] }}
+                            className="fixed inset-0 z-[400] bg-[#D2B48C] flex flex-col items-center justify-center p-6 text-center shadow-[inset_0_0_100px_rgba(0,0,0,0.2)]"
                         >
-                            {/* Decorative Corners */}
-                            <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#8B4513]" />
-                            <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#8B4513]" />
-                            
-                            <h1 className="text-4xl md:text-6xl font-bold mb-4 uppercase tracking-widest text-[#5D4037]">
-                                Archive of Us
-                            </h1>
-                            <p className="font-handwriting text-2xl md:text-3xl text-[#8B4513] mb-8">
-                                Est. [Year] — Forever
-                            </p>
-                            <button 
-                                onClick={handleEntry}
-                                className="px-8 py-3 bg-[#8B4513] text-[#F5DEB3] rounded-sm text-lg hover:bg-[#5D4037] transition-all uppercase tracking-tighter"
+                            <motion.div
+                                initial={{ scale: 0.9 }}
+                                animate={{ scale: 1 }}
+                                className="border-2 border-[#8B4513] p-8 md:p-12 relative"
                             >
-                                Open the Archives 🗝️
-                            </button>
+                                {/* Decorative Corners */}
+                                <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#8B4513]" />
+                                <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#8B4513]" />
+                                
+                                <h1 className="text-4xl md:text-6xl font-bold mb-4 uppercase tracking-widest text-[#5D4037]">
+                                    Archive of Us
+                                </h1>
+                                <p className="font-handwriting text-2xl md:text-3xl text-[#8B4513] mb-8">
+                                    Est. [Year] — Forever
+                                </p>
+                                <button 
+                                    onClick={handleEntry}
+                                    className="px-8 py-3 bg-[#8B4513] text-[#F5DEB3] rounded-sm text-lg hover:bg-[#5D4037] transition-all uppercase tracking-tighter"
+                                >
+                                    Open the Archives 🗝️
+                                </button>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    )}
+                </AnimatePresence>
+            )}
 
-            {/* 5. MAIN CONTENT */}
+            {/* 6. MAIN CONTENT */}
             <main className={`relative z-10 transition-opacity duration-1000 ${showContent ? "opacity-100" : "opacity-0"}`}>
                 {children}
             </main>
 
-            {/* 6. WAX SEAL TRIGGER (The Letter) */}
+            {/* 7. WAX SEAL TRIGGER - CONDITIONAL RENDER */}
             <AnimatePresence>
-                {showContent && (
+                {showContent && !hideControls && (
                     <motion.button
                         initial={{ opacity: 0, rotate: 20 }}
                         animate={{ opacity: 1, rotate: 0 }}
@@ -135,8 +153,13 @@ export default function VintageLayout({ children, current_music, letter_content 
                 )}
             </AnimatePresence>
 
-            {isLetterOpen && (
-                <LetterModal onClose={() => setIsLetterOpen(false)} data={letter_content} theme="vintage" />
+            {/* 8. LETTER MODAL - CONDITIONAL RENDER */}
+            {isLetterOpen && !hideControls && (
+                <LetterModal 
+                    onClose={() => setIsLetterOpen(false)} 
+                    data={letter_content} 
+                    theme="vintage" 
+                />
             )}
         </div>
     );

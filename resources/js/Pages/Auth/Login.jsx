@@ -54,7 +54,7 @@ export default function Login({ status, canResetPassword }) {
                         type="email"
                         name="email"
                         value={data.email}
-                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm"
+                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800 placeholder:text-gray-400"
                         autoComplete="username"
                         isFocused={true}
                         placeholder="yourname@love.com"
@@ -73,7 +73,7 @@ export default function Login({ status, canResetPassword }) {
                         type="password"
                         name="password"
                         value={data.password}
-                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm"
+                        className="w-full border-pink-100 bg-white/50 rounded-2xl p-4 focus:ring-pink-200 focus:border-pink-300 shadow-sm text-gray-800 placeholder:text-gray-400"
                         autoComplete="current-password"
                         placeholder="••••••••"
                         onChange={(e) => setData('password', e.target.value)}
@@ -90,8 +90,8 @@ export default function Login({ status, canResetPassword }) {
                             className="rounded text-pink-400 focus:ring-pink-300 border-pink-200"
                             onChange={(e) => setData('remember', e.target.checked)}
                         />
-                        <span className="ms-2 text-sm text-gray-500 group-hover:text-pink-400 transition-colors">
-                            Remember us?
+                        <span className="ms-2 text-sm text-gray-600 group-hover:text-pink-400 transition-colors">
+                            Remember me
                         </span>
                     </label>
 
@@ -100,12 +100,12 @@ export default function Login({ status, canResetPassword }) {
                             href={route('password.request')}
                             className="text-sm text-pink-300 hover:text-pink-500 transition-colors"
                         >
-                            Forgot?
+                            Forgot password?
                         </Link>
                     )}
                 </div>
 
-                {/* BUTTONS */}
+                {/* BUTTON */}
                 <div className="pt-2">
                     <PrimaryButton 
                         className="w-full justify-center bg-pink-400 hover:bg-pink-500 active:bg-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-pink-100 transition-all transform hover:-translate-y-0.5" 
@@ -114,7 +114,8 @@ export default function Login({ status, canResetPassword }) {
                         {processing ? 'Signing in...' : 'Sign In ✨'}
                     </PrimaryButton>
                     
-                    <p className="text-center text-sm text-gray-400 mt-6">
+                    {/* FOOTER LINK */}
+                    <p className="text-center text-sm text-gray-600 mt-6">
                         Don't have an account?{' '}
                         <Link href={route('register')} className="text-pink-400 font-bold hover:underline">
                             Create one

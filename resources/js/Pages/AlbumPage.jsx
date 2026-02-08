@@ -37,8 +37,8 @@ export default function AlbumPage({ album, photos }) {
   };
 
   return (
-    // We pass the album theme directly to the layout
-    <AppLayout theme={album.theme}>
+    // FIXED: Use hideControls={true} instead of theme prop
+    <AppLayout hideControls={true}>
       <Head title={album.title} />
       
       {/* 1. ADAPTIVE LOADING SCREEN */}
@@ -46,7 +46,6 @@ export default function AlbumPage({ album, photos }) {
         {isLoading && (
           <motion.div 
             exit={{ opacity: 0 }} 
-            // We use 'bg-inherit' or transparent to let AppLayout's background stay visible
             className="fixed inset-0 z-[500] bg-white/10 backdrop-blur-xl flex flex-col items-center justify-center"
           >
             <motion.div 
