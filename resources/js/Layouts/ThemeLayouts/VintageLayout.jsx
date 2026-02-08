@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";;
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
-import VintageHearts from "@/Components/ThemeComponents/Vintage/Hearts";
 
 const ephemera = [
     { id: 1, content: "📜", top: "8%", left: "12%", rotate: -10, duration: 25 },
@@ -16,7 +16,7 @@ export default function VintageLayout({
     children, 
     current_music, 
     letter_content, 
-    hideControls = false // ADD THIS PROP
+    hideControls = false 
 }) {
     const [isEntryClicked, setIsEntryClicked] = useState(() => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('vintageOpened') === 'true';
@@ -35,51 +35,56 @@ export default function VintageLayout({
         sessionStorage.setItem('vintageOpened', 'true');
     };
 
-    // Auto-show content if hideControls is true (for album pages)
     if (hideControls && !showContent) {
         setShowContent(true);
-        if (!isEntryClicked) {
-            setIsEntryClicked(true);
-        }
+        if (!isEntryClicked) setIsEntryClicked(true);
     }
 
     return (
-        /* The background uses a 'sepia' paper color and a subtle noise texture */
         <div className="font-serif bg-[#EADDCA] text-[#4A3728] antialiased selection:bg-[#C2B280] min-h-screen relative overflow-x-hidden">
             
-            {/* 1. VINTAGE OVERLAY (Subtle grain/paper texture) */}
-            <div className="fixed inset-0 z-[50] pointer-events-none opacity-20 mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]" />
+            {/* 1. VINTAGE OVERLAY (Portaled for hardware acceleration) */}
+            {typeof window !== 'undefined' && createPortal(
+                <div 
+                    className="fixed inset-0 z-[50] pointer-events-none opacity-[0.15] mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')] transform-gpu" 
+                    style={{ willChange: 'transform' }}
+                />,
+                document.body
+            )}
 
-            {/* 2. FLOATING EPHEMERA */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                {ephemera.map((item) => (
-                    <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0 }}
-                        animate={showContent ? { 
-                            opacity: 0.4, 
-                            y: [0, -15, 0],
-                            rotate: [item.rotate, item.rotate + 5, item.rotate]
-                        } : { opacity: 0 }}
-                        transition={{ duration: 2, y: { repeat: Infinity, duration: item.duration, ease: "easeInOut" } }}
-                        className="absolute text-5xl md:text-6xl filter sepia-[0.5]"
-                        style={{ top: item.top, left: item.left }}
-                    >
-                        {item.content}
-                    </motion.div>
-                ))}
-            </div>
+            {/* 2. PORTALED FLOATING EPHEMERA */}
+            {typeof window !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" style={{ contain: 'layout paint' }}>
+                    {ephemera.map((item) => (
+                        <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0 }}
+                            animate={showContent ? { 
+                                opacity: 0.35, 
+                                y: [0, -15, 0],
+                                rotate: [item.rotate, item.rotate + 5, item.rotate]
+                            } : { opacity: 0 }}
+                            transition={{ 
+                                opacity: { duration: 2 }, 
+                                y: { repeat: Infinity, duration: item.duration, ease: "linear" } 
+                            }}
+                            className="absolute text-5xl md:text-6xl transform-gpu will-change-transform"
+                            style={{ 
+                                top: item.top, 
+                                left: item.left,
+                                filter: 'sepia(0.4) brightness(0.9)' // Moved from tailwind for cleaner style management
+                            }}
+                        >
+                            {item.content}
+                        </motion.div>
+                    ))}
+                </div>,
+                document.body
+            )}
 
-            {/* 3. VINTAGE HEARTS / DUST PARTICLES */}
-            <AnimatePresence>
-                {showContent && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 3 }}>
-                        <VintageHearts />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Note: VintageHearts removed. Handled by AppLayout's FloatingVintage particles. */}
 
-            {/* 4. MUSIC PLAYER - CONDITIONAL RENDER */}
+            {/* 4. MUSIC PLAYER */}
             {!hideControls && (
                 <MusicPlayer 
                     url={current_music?.url} 
@@ -91,21 +96,22 @@ export default function VintageLayout({
                 />
             )}
 
-            {/* 5. ENTRANCE SCREEN - CONDITIONAL RENDER */}
+            {/* 5. ENTRANCE SCREEN */}
             {!hideControls && (
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     {!isEntryClicked && (
                         <motion.div 
+                            key="vintage-cover"
                             exit={{ y: "-100%", opacity: 0 }}
                             transition={{ duration: 1.2, ease: [0.43, 0.13, 0.23, 0.96] }}
                             className="fixed inset-0 z-[400] bg-[#D2B48C] flex flex-col items-center justify-center p-6 text-center shadow-[inset_0_0_100px_rgba(0,0,0,0.2)]"
                         >
                             <motion.div
-                                initial={{ scale: 0.9 }}
-                                animate={{ scale: 1 }}
+                                initial={{ scale: 0.95, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ duration: 0.8 }}
                                 className="border-2 border-[#8B4513] p-8 md:p-12 relative"
                             >
-                                {/* Decorative Corners */}
                                 <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#8B4513]" />
                                 <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#8B4513]" />
                                 
@@ -113,7 +119,7 @@ export default function VintageLayout({
                                     Archive of Us
                                 </h1>
                                 <p className="font-handwriting text-2xl md:text-3xl text-[#8B4513] mb-8">
-                                    Est. [Year] — Forever
+                                    Est. 2024 — Forever
                                 </p>
                                 <button 
                                     onClick={handleEntry}
@@ -132,7 +138,7 @@ export default function VintageLayout({
                 {children}
             </main>
 
-            {/* 7. WAX SEAL TRIGGER - CONDITIONAL RENDER */}
+            {/* 7. WAX SEAL TRIGGER */}
             <AnimatePresence>
                 {showContent && !hideControls && (
                     <motion.button
@@ -145,7 +151,6 @@ export default function VintageLayout({
                         <div className="relative group">
                             <div className="bg-[#C19A6B] w-16 h-16 rounded-full flex items-center justify-center shadow-xl border-4 border-[#A0522D] relative overflow-hidden">
                                 <span className="text-3xl group-hover:scale-110 transition-transform">✉️</span>
-                                {/* Wax Seal Effect */}
                                 <div className="absolute inset-0 bg-red-900/20 mix-blend-overlay" />
                             </div>
                         </div>
@@ -153,14 +158,16 @@ export default function VintageLayout({
                 )}
             </AnimatePresence>
 
-            {/* 8. LETTER MODAL - CONDITIONAL RENDER */}
-            {isLetterOpen && !hideControls && (
-                <LetterModal 
-                    onClose={() => setIsLetterOpen(false)} 
-                    data={letter_content} 
-                    theme="vintage" 
-                />
-            )}
+            {/* 8. MODAL */}
+            <AnimatePresence>
+                {isLetterOpen && !hideControls && (
+                    <LetterModal 
+                        onClose={() => setIsLetterOpen(false)} 
+                        data={letter_content} 
+                        theme="vintage" 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

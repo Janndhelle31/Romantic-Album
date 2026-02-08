@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
-import Hearts from '@/Components/ThemeComponents/Default/Hearts';
 
 const polaroids = [
     { id: 1, src: "https://images.unsplash.com/photo-1518133910546-b6c2fb7d79e3?w=300", top: "5%", left: "5%", rotate: -15, duration: 25 },
@@ -12,167 +12,104 @@ const polaroids = [
     { id: 10, src: "https://images.unsplash.com/photo-1520854221257-1745133e1ef1?w=300", top: "60%", left: "70%", rotate: 20, duration: 33 },
 ];
 
-export default function DefaultLayout({ 
-    children, 
-    current_music, 
-    letter_content, 
-    hideControls = false // ADD THIS PROP
-}) {
-    // 1. Initial State Logic
-    const [isEntryClicked, setIsEntryClicked] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('bookOpened') === 'true';
-        }
-        return false;
-    });
-
-    const [showContent, setShowContent] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('bookOpened') === 'true';
-        }
-        return false;
-    });
-
+export default function DefaultLayout({ children, current_music, letter_content, hideControls = false }) {
+    const [mounted, setMounted] = useState(false);
+    const [isEntryClicked, setIsEntryClicked] = useState(false);
+    const [showContent, setShowContent] = useState(false);
     const [isLetterOpen, setIsLetterOpen] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        const hasOpened = sessionStorage.getItem('bookOpened') === 'true';
+        if (hasOpened || hideControls) {
+            setIsEntryClicked(true);
+            setShowContent(true);
+        }
+    }, [hideControls]);
 
     const handleEntry = () => {
         setIsEntryClicked(true);
         sessionStorage.setItem('bookOpened', 'true');
-        // showContent is triggered by the MusicPlayer onComplete or manually if no music
+        // If there's no countdown in MusicPlayer, content shows via onComplete
     };
 
-    // Auto-show content if hideControls is true (for album pages)
-    if (hideControls && !showContent) {
-        setShowContent(true);
-        if (!isEntryClicked) {
-            setIsEntryClicked(true);
-        }
-    }
+    if (!mounted) return <div className="bg-[#FFFBF0] min-h-screen" />;
 
     return (
         <div className="font-serif bg-[#FFFBF0] antialiased selection:bg-yellow-100 min-h-screen relative">
             
             {/* 1. SCATTERED BACKGROUND POLAROIDS */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                {polaroids.map((p) => (
-                    <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={showContent ? { 
-                            opacity: 0.35, 
-                            scale: 1,
-                            y: [0, -20, 0],
-                            x: [0, 10, 0],
-                            rotate: [p.rotate, p.rotate + 3, p.rotate]
-                        } : { opacity: 0 }}
-                        transition={{ 
-                            opacity: { duration: 1.5, delay: p.id * 0.1 },
-                            y: { repeat: Infinity, duration: p.duration, ease: "easeInOut" },
-                            rotate: { repeat: Infinity, duration: p.duration * 1.5, ease: "easeInOut" }
-                        }}
-                        className="absolute w-32 md:w-48 bg-white p-2 pb-8 shadow-lg border border-gray-100 transform-gpu"
-                        style={{ top: p.top, left: p.left, filter: "blur(1px)" }}
-                    >
-                        <div className="w-full h-full bg-gray-50 overflow-hidden">
+            {createPortal(
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                    {polaroids.map((p) => (
+                        <motion.div
+                            key={p.id}
+                            initial={{ opacity: 0 }}
+                            animate={showContent ? { opacity: 0.25, y: [0, -20, 0] } : { opacity: 0 }}
+                            transition={{ y: { repeat: Infinity, duration: p.duration, ease: "linear" } }}
+                            className="absolute w-32 md:w-48 bg-white p-2 pb-8 shadow-md transform-gpu"
+                            style={{ top: p.top, left: p.left, rotate: p.rotate }}
+                        >
                             <img src={p.src} alt="" className="w-full h-full object-cover grayscale-[20%]" />
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+                        </motion.div>
+                    ))}
+                </div>,
+                document.body
+            )}
 
-            {/* 2. FLOATING HEARTS (Only visible after opening the book) */}
-            <AnimatePresence>
-                {showContent && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        transition={{ duration: 2 }}
-                    >
-                        <Hearts />
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* 3. MUSIC PLAYER (Controls the flow) - CONDITIONAL RENDER */}
+            {/* 2. MUSIC PLAYER - Only starts logic when entry is clicked */}
             {!hideControls && (
                 <MusicPlayer 
                     url={current_music?.url} 
                     displayName={current_music?.display_name}
-                    skipCountdown={showContent} 
+                    skipCountdown={showContent} // Skip countdown if already seen
                     start={isEntryClicked} 
                     onComplete={() => setShowContent(true)} 
                     theme="default"
                 />
             )}
 
-            {/* 4. INITIAL COVER SCREEN - CONDITIONAL RENDER */}
-            {!hideControls && (
-                <AnimatePresence>
-                    {!isEntryClicked && (
-                        <motion.div 
-                            exit={{ opacity: 0, scale: 1.1 }}
-                            transition={{ duration: 0.8, ease: "easeInOut" }}
-                            className="fixed inset-0 z-[400] bg-[#FFFBF0] flex flex-col items-center justify-center p-6 text-center"
-                        >
-                            <motion.h1 
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="text-5xl md:text-7xl text-gray-800 mb-4"
-                            >
-                                For My Favorite Person
-                            </motion.h1>
-                            <motion.p 
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.2 }}
-                                className="font-handwriting text-3xl text-pink-400 mb-10"
-                            >
-                                A collection of our sunshine moments
-                            </motion.p>
-                            <motion.button 
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={handleEntry}
-                                className="px-10 py-4 bg-yellow-400 text-white rounded-full text-xl shadow-xl hover:bg-yellow-500 transition-all z-[401]"
-                            >
-                                Open Memory Book 🎁
-                            </motion.button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            )}
+            {/* 3. INITIAL COVER SCREEN */}
+            <AnimatePresence>
+                {!isEntryClicked && !hideControls && (
+                    <motion.div 
+                        exit={{ opacity: 0, scale: 1.1 }}
+                        transition={{ duration: 0.8 }}
+                        className="fixed inset-0 z-[400] bg-[#FFFBF0] flex flex-col items-center justify-center p-6 text-center"
+                    >
+                        <h1 className="text-5xl md:text-7xl text-gray-800 mb-4">For My Favorite Person</h1>
+                        <p className="font-handwriting text-3xl text-pink-400 mb-10">A collection of our sunshine moments</p>
+                        <button onClick={handleEntry} className="px-10 py-4 bg-yellow-400 text-white rounded-full text-xl shadow-xl hover:bg-yellow-500 transition-all">
+                            Open Memory Book 🎁
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-            {/* 5. MAIN CONTENT AREA (The Dashboard/Pages) */}
+            {/* 4. MAIN CONTENT AREA */}
             <main className={`relative z-10 transition-opacity duration-1000 ${showContent ? "opacity-100" : "opacity-0"}`}>
                 {children}
             </main>
 
-            {/* 6. FLOATING LETTER TRIGGER - CONDITIONAL RENDER */}
+            {/* 5. FLOATING LETTER */}
             <AnimatePresence>
                 {showContent && !hideControls && (
                     <motion.button
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1, y: [0, -15, 0], rotate: [-12, -8, -12] }}
-                        whileHover={{ scale: 1.1, rotate: 0 }}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         onClick={() => setIsLetterOpen(true)}
                         className="fixed bottom-10 right-10 z-[200]"
                     >
-                        <div className="bg-white p-4 rounded-2xl border-2 border-pink-100 shadow-2xl relative group">
-                            <span className="text-4xl md:text-5xl">✉️</span>
-                            <div className="absolute -top-2 -right-2 bg-pink-400 w-6 h-6 rounded-full border-2 border-white" />
+                         <div className="bg-white p-4 rounded-2xl border-2 border-pink-100 shadow-2xl hover:scale-110 transition-transform">
+                            <span className="text-4xl">✉️</span>
                         </div>
                     </motion.button>
                 )}
             </AnimatePresence>
 
-            {/* 7. MODAL WITH REAL DATA - CONDITIONAL RENDER */}
             <AnimatePresence>
-                {isLetterOpen && !hideControls && (
-                    <LetterModal 
-                        onClose={() => setIsLetterOpen(false)} 
-                        data={letter_content}
-                        theme="default"
-                    />
+                {isLetterOpen && (
+                    <LetterModal onClose={() => setIsLetterOpen(false)} data={letter_content} theme="default" />
                 )}
             </AnimatePresence>
         </div>

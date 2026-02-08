@@ -18,6 +18,14 @@ Route::get('/', function () {
         : Inertia::render('Auth/Login');
 });
 
+
+Route::get('/sample-albums/{slug}', [AlbumController::class, 'showSample'])
+    ->name('sample-albums.show');
+
+// Regular album routes (keep your existing)
+Route::get('/albums/{album}', [AlbumController::class, 'show'])
+    ->name('albums.show');
+    
 // 2. MAGIC LOGIN FOR GF (NO AUTH NEEDED!)
 Route::get('/magic-login/{token}', function ($token) {
     $user = User::where('login_token', $token)

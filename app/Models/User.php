@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail; // Import this
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -70,7 +71,7 @@ class User extends Authenticatable
         return $this->hasOne(Letter::class);
     }
 
-    public function setting()
+public function setting(): HasOne
     {
         return $this->hasOne(Setting::class);
     }

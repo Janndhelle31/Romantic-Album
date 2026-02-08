@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
-import Stars from '@/Components/ThemeComponents/Midnight/Stars';
 
 const polaroids = [
     { id: 1, src: "https://images.unsplash.com/photo-1518133910546-b6c2fb7d79e3?w=300", top: "5%", left: "5%", rotate: -15, duration: 25 },
@@ -16,19 +16,15 @@ export default function MidnightLayout({
     children, 
     current_music, 
     letter_content, 
-    hideControls = false // ADD THIS PROP
+    hideControls = false 
 }) {
     const [isEntryClicked, setIsEntryClicked] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('bookOpened') === 'true';
-        }
+        if (typeof window !== 'undefined') return sessionStorage.getItem('bookOpened') === 'true';
         return false;
     });
 
     const [showContent, setShowContent] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('bookOpened') === 'true';
-        }
+        if (typeof window !== 'undefined') return sessionStorage.getItem('bookOpened') === 'true';
         return false;
     });
 
@@ -39,54 +35,47 @@ export default function MidnightLayout({
         sessionStorage.setItem('bookOpened', 'true');
     };
 
-    // Auto-show content if hideControls is true (for album pages)
     if (hideControls && !showContent) {
         setShowContent(true);
-        if (!isEntryClicked) {
-            setIsEntryClicked(true);
-        }
+        if (!isEntryClicked) setIsEntryClicked(true);
     }
 
     return (
         <div className="font-serif bg-[#0A0A0B] antialiased selection:bg-indigo-900 selection:text-white min-h-screen relative text-gray-200">
             
-            {/* 1. SCATTERED BACKGROUND POLAROIDS (Dark Mode Styling) */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                {polaroids.map((p) => (
-                    <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={showContent ? { 
-                            opacity: 0.2,
-                            scale: 1,
-                            y: [0, -20, 0],
-                            rotate: [p.rotate, p.rotate + 3, p.rotate]
-                        } : { opacity: 0 }}
-                        transition={{ 
-                            opacity: { duration: 1.5, delay: p.id * 0.1 },
-                            y: { repeat: Infinity, duration: p.duration, ease: "easeInOut" },
-                            rotate: { repeat: Infinity, duration: p.duration * 1.5, ease: "easeInOut" }
-                        }}
-                        className="absolute w-32 md:w-48 bg-white/10 p-2 pb-8 shadow-2xl backdrop-blur-md border border-white/10 transform-gpu"
-                        style={{ top: p.top, left: p.left, filter: "blur(0.5px)" }}
-                    >
-                        <div className="w-full h-full bg-black/40 overflow-hidden">
-                            <img src={p.src} alt="" className="w-full h-full object-cover grayscale-[60%] contrast-125" />
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+            {/* 1. PORTALED BACKGROUND POLAROIDS */}
+            {typeof window !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" style={{ contain: 'layout paint' }}>
+                    {polaroids.map((p) => (
+                        <motion.div
+                            key={p.id}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={showContent ? { 
+                                opacity: 0.15, // Faint enough to look distant without blur
+                                scale: 1,
+                                y: [0, -20, 0],
+                            } : { opacity: 0 }}
+                            transition={{ 
+                                opacity: { duration: 1.5 },
+                                y: { repeat: Infinity, duration: p.duration, ease: "linear" }
+                            }}
+                            className="absolute w-32 md:w-48 bg-white/5 p-2 pb-8 border border-white/10 shadow-2xl transform-gpu will-change-transform"
+                            style={{ top: p.top, left: p.left, rotate: p.rotate }}
+                        >
+                            <div className="w-full h-full bg-black/40 overflow-hidden">
+                                <img src={p.src} alt="" className="w-full h-full object-cover grayscale-[60%] contrast-125" />
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>,
+                document.body
+            )}
 
-            {/* 2. FLOATING STARS (Midnight Exclusive) */}
-            <AnimatePresence>
-                {showContent && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2 }}>
-                        <Stars />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* NOTE: We REMOVED the <Stars /> component here. 
+                It is now rendered in AppLayout to prevent duplication and lag.
+            */}
 
-            {/* 3. MUSIC PLAYER - CONDITIONAL RENDER */}
+            {/* 3. MUSIC PLAYER */}
             {!hideControls && (
                 <MusicPlayer 
                     url={current_music?.url} 
@@ -98,38 +87,28 @@ export default function MidnightLayout({
                 />
             )}
 
-            {/* 4. INITIAL COVER SCREEN - CONDITIONAL RENDER */}
+            {/* 4. INITIAL COVER SCREEN */}
             {!hideControls && (
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     {!isEntryClicked && (
                         <motion.div 
+                            key="midnight-cover"
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.8, ease: "easeInOut" }}
                             className="fixed inset-0 z-[400] bg-[#0A0A0B] flex flex-col items-center justify-center p-6 text-center"
                         >
-                            {/* Subtle background glow */}
                             <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/20 to-transparent pointer-events-none" />
-                            
-                            <motion.h1 
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="text-5xl md:text-7xl text-white mb-4 tracking-tight"
-                            >
+                            <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-5xl md:text-7xl text-white mb-4 tracking-tight">
                                 Written in the Stars
                             </motion.h1>
-                            <motion.p 
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.2 }}
-                                className="font-handwriting text-3xl text-indigo-300 mb-10"
-                            >
+                            <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="font-handwriting text-3xl text-indigo-300 mb-10">
                                 Our quiet moments under the moon
                             </motion.p>
                             <motion.button 
                                 whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(99, 102, 241, 0.4)" }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={handleEntry}
-                                className="px-10 py-4 bg-indigo-600 text-white rounded-full text-xl shadow-[0_0_15px_rgba(99,102,241,0.3)] hover:bg-indigo-500 transition-all z-[401] border border-indigo-400/30"
+                                className="px-10 py-4 bg-indigo-600 text-white rounded-full text-xl shadow-lg hover:bg-indigo-500 transition-all z-[401] border border-indigo-400/30"
                             >
                                 Enter the Night 🌙
                             </motion.button>
@@ -143,7 +122,7 @@ export default function MidnightLayout({
                 {children}
             </main>
 
-            {/* 6. FLOATING LETTER TRIGGER - CONDITIONAL RENDER */}
+            {/* 6. FLOATING LETTER TRIGGER */}
             <AnimatePresence>
                 {showContent && !hideControls && (
                     <motion.button
@@ -153,15 +132,14 @@ export default function MidnightLayout({
                         onClick={() => setIsLetterOpen(true)}
                         className="fixed bottom-10 right-10 z-[200]"
                     >
-                        <div className="bg-indigo-950/80 backdrop-blur-md p-4 rounded-2xl border border-indigo-500/50 shadow-[0_0_25px_rgba(79,70,229,0.3)] relative group">
+                        <div className="bg-indigo-950/80 backdrop-blur-md p-4 rounded-2xl border border-indigo-500/50 shadow-2xl">
                             <span className="text-4xl md:text-5xl">🌌</span>
-                            <div className="absolute -top-1 -right-1 bg-indigo-400 w-4 h-4 rounded-full border border-white animate-pulse" />
                         </div>
                     </motion.button>
                 )}
             </AnimatePresence>
 
-            {/* 7. MODAL - CONDITIONAL RENDER */}
+            {/* 7. MODAL */}
             <AnimatePresence>
                 {isLetterOpen && !hideControls && (
                     <LetterModal 
