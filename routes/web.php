@@ -7,7 +7,6 @@ use App\Http\Controllers\Couple\SettingsController;
 use App\Http\Controllers\Couple\UserDashboardController;
 use App\Http\Controllers\PublicView\PublicController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -19,17 +18,18 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : Inertia::render('Auth/Login');
 });
-Route::post('/login-demo', [AuthenticatedSessionController::class, 'loginDemo'])->name('login.demo');
+
 
 // Public access route
 Route::get('/preview', [PublicController::class, 'preview'])->name('public.preview');
 
+// Add this new route for preview albums
+Route::get('/preview/album/{slug}', [PublicController::class, 'previewAlbum'])
+    ->name('preview.album.show');
+
+// Keep your existing sample album route
 Route::get('/sample-albums/{slug}', [AlbumController::class, 'showSample'])
     ->name('sample-albums.show');
-
-// Regular album routes (keep your existing)
-Route::get('/albums/{album}', [AlbumController::class, 'show'])
-    ->name('albums.show');
     
 // 2. MAGIC LOGIN FOR GF (NO AUTH NEEDED!)
 Route::get('/magic-login/{token}', function ($token) {

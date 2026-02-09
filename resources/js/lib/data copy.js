@@ -221,8 +221,33 @@ export const getFeaturedAlbums = (count = 3) => {
   return sampleAlbums.slice(0, count);
 };
 
+export const isSampleAlbum = (slug) => {
+  return sampleAlbums.some(album => album.slug === slug);
+};
+
+// Get sample album by slug
+export const getSampleAlbumBySlug = (slug) => {
+  return sampleAlbums.find(album => album.slug === slug);
+};
+
+// Get random sample albums
+export const getRandomSampleAlbums = (count = 3) => {
+  const shuffled = [...sampleAlbums].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+};
+
+// Create sample album link
 export const getSampleAlbumUrl = (slug) => {
-  return `/preview/album/${slug}`;
+  return `/sample-albums/${slug}`;
+};
+
+// Get all sample album URLs
+export const getAllSampleAlbumUrls = () => {
+  return sampleAlbums.map(album => ({
+    slug: album.slug,
+    url: `/sample-albums/${album.slug}`,
+    title: album.title
+  }));
 };
 
 export const searchAlbums = (query) => {

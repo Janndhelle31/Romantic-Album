@@ -5,9 +5,11 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import AppLayout from './Layouts/AppLayout';
-import FloatingHearts from '@/Components/FloatingHearts'; // 1. Import your optimized component
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+// Get current origin (http or https)
+const currentOrigin = window.location.origin;
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -21,18 +23,19 @@ createInertiaApp({
         return page;
     },
     setup({ el, App, props }) {
-        // ... (your existing history pushState logic)
-
-        const root = createRoot(el);
+        // Set base URL for Inertia requests
+        if (window.history?.pushState) {
+            const originalPushState = window.history.pushState;
+            window.history.pushState = function(state, title, url) {
+                if (url && typeof url === 'string' && url.startsWith('http://')) {
+                    url = url.replace('http://', 'https://');
+                }
+                return originalPushState.call(this, state, title, url);
+            };
+        }
         
-        // 2. Wrap the App and the floating effect in a Fragment
-        // This ensures Hearts is independent of the Inertia routing/scrolling logic
-        root.render(
-            <>
-                <App {...props} />
-                <FloatingHearts /> 
-            </>
-        );
+        const root = createRoot(el);
+        root.render(<App {...props} />);
     },
     progress: {
         color: '#fbbf24',
