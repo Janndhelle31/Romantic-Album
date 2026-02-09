@@ -231,3 +231,21 @@ export const searchAlbums = (query) => {
     album.description.toLowerCase().includes(query.toLowerCase())
   );
 };
+
+export const getSampleMusic = () => ({
+    id: 'sample-music-1',
+    url: 'https://example.com/sample-music.mp3',
+    display_name: 'Sample Ambient Music',
+    title: 'Dreamy Ambient Sounds',
+    artist: 'Sample Orchestra',
+    duration: 180,
+    is_sample: true
+});
+
+export const getSampleLetter = () => ({
+    id: 'sample-letter-1',
+    title: 'A Sample Love Letter',
+    content: 'This is a sample love letter to show you how your letters will appear. In the full version, you can write your own personal messages.',
+    date: 'February 14, 2024',
+    is_sample: true
+});

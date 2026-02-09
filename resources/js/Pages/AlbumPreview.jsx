@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import AppLayout from '@/Layouts/AppLayout'; 
+import AppLayout from '@/Layouts/DemoLayout'; 
 import Polaroid from '@/Components/Polaroid';
 import { getAlbumBySlug, getAllAlbums } from '@/lib/data';
 
@@ -72,14 +72,25 @@ export default function AlbumPreview({ slug }) {
   // If no album found
   if (!album && !isLoading) {
     return (
-      <AppLayout hideControls={true}>
+      <AppLayout hideControls={false} isPreview={true}>
         <Head title="Sample Not Found" />
-        <main className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-blue-50 to-white">
+        <main className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
           <div className="text-6xl mb-6 opacity-30">🔍</div>
           <h1 className="text-3xl font-serif mb-4">Sample Album Not Found</h1>
           <p className="text-gray-600 mb-8 max-w-md">
-            This sample album doesn't exist. Explore other sample collections.
+            The sample album "{slug}" doesn't exist. Try one of these:
           </p>
+          <div className="flex flex-wrap gap-2 justify-center mb-8">
+            {allAlbums.map(a => (
+              <Link 
+                key={a.slug}
+                href={`/preview/album/${a.slug}`}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                {a.title}
+              </Link>
+            ))}
+          </div>
           <Link 
             href="/preview"
             className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
@@ -97,7 +108,7 @@ export default function AlbumPreview({ slug }) {
   const nextAlbum = currentIndex < allAlbums.length - 1 ? allAlbums[currentIndex + 1] : null;
 
   return (
-    <AppLayout hideControls={true}>
+    <AppLayout hideControls={true} isPreview={true}>
       <Head title={`${album?.title || "Sample"} | Preview`} />
       
       {/* LOADING SCREEN */}
@@ -129,7 +140,7 @@ export default function AlbumPreview({ slug }) {
         )}
       </AnimatePresence>
 
-      <main className="min-h-screen p-4 md:p-8 relative bg-gradient-to-b from-white to-gray-50">
+      <main className="min-h-screen p-4 md:p-8 relative">
         
         {/* LIGHTBOX */}
         <AnimatePresence>

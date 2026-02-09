@@ -5,11 +5,9 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import AppLayout from './Layouts/AppLayout';
+import DemoLayout from './Layouts/DemoLayout'; // Add this import
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-
-// Get current origin (http or https)
-const currentOrigin = window.location.origin;
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -19,7 +17,18 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.jsx'),
         );
 
-        page.default.layout = page.default.layout || ((page) => <AppLayout children={page} />);
+        // FIX: Set layout conditionally based on page
+        if (!page.default.layout) {
+            // For preview pages, use DemoLayout
+            if (name === 'Preview' || name === 'AlbumPreview') {
+                page.default.layout = (page) => <DemoLayout children={page} isPreview={true} />;
+            } 
+            // For all other pages, use AppLayout
+            else {
+                page.default.layout = (page) => <AppLayout children={page} />;
+            }
+        }
+        
         return page;
     },
     setup({ el, App, props }) {

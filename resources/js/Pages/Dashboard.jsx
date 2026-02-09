@@ -44,7 +44,7 @@ export default function Dashboard({ albums = [], settings = null }) {
 
     return (
         /* CRITICAL FIX: Pass hideControls=false so AppLayout renders ONE MusicPlayer */
-        <AppLayout hideControls={false}>
+        <AppLayout hideControls={true}>
             <Head title={mergedSettings.story_title} />
 
             {/* INITIAL LOADING COVER - This should hide the MusicPlayer temporarily */}

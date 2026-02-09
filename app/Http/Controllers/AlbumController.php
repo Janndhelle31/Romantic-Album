@@ -11,18 +11,28 @@ class AlbumController extends Controller
     /**
      * Revised Index: Now ensures setting (music/letter) are sent to AppLayout
      */
-    public function index()
-    {
-        $user = auth()->user();
-
-        // Ensure setting exist (avoiding null errors in AppLayout)
-        $setting = $user->setting()->firstOrCreate([
-            'user_id' => $user->id
-        ], [
-            'music_display_name' => 'Our Soundtrack',
-            'music_url' => '', // Falls back to your bg-track.mp3 in JS
-            'letter_content' => 'Welcome to our memory album...'
-        ]);
+public function index()
+{
+    $user = auth()->user();
+    
+    // Debug: Check if user has setting relationship
+    \Log::info('User ID: ' . $user->id);
+    \Log::info('User settings: ', $user->setting()->exists() ? ['exists' => true] : ['exists' => false]);
+    
+    $setting = $user->setting()->firstOrCreate([
+        'user_id' => $user->id
+    ], [
+        'music_display_name' => 'Our Soundtrack',
+        'music_url' => '/music/bg-track.mp3', // Make sure this is a valid path
+        'letter_content' => 'Welcome to our memory album. This is where our story begins...'
+    ]);
+    
+    \Log::info('Setting values: ', [
+        'music_url' => $setting->music_url,
+        'music_display_name' => $setting->music_display_name,
+        'letter_content' => $setting->letter_content
+    ]);
+    
 
         $albums = Album::where('user_id', $user->id)
             ->with(['memories' => function($query) {

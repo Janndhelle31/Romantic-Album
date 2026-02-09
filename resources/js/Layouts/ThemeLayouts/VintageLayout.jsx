@@ -22,7 +22,11 @@ export default function VintageLayout({
         if (typeof window !== 'undefined') return sessionStorage.getItem('vintageOpened') === 'true';
         return false;
     });
-
+console.log('🔍 VINTAGE LAYOUT RENDERING', {
+    hideControls,
+    hasMusic: !!current_music,
+    hasLetter: !!letter_content
+});
     const [showContent, setShowContent] = useState(() => {
         if (typeof window !== 'undefined') return sessionStorage.getItem('vintageOpened') === 'true';
         return false;

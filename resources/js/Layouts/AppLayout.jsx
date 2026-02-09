@@ -15,7 +15,12 @@ import FloatingClassy from "@/Components/ThemeComponents/Classy/FloatingClassy";
 
 export default function AppLayout({ children, hideControls = false }) {
     const { auth, current_music, letter_content } = usePage().props;
-    
+        console.log('AppLayout rendering', {
+        theme: auth?.user?.theme,
+        hideControls,
+        current_music,
+        hasLetter: !!letter_content
+    });
     // 1. Define State first
     const [theme, setTheme] = useState(() => {
         if (typeof window === 'undefined') return 'default';
