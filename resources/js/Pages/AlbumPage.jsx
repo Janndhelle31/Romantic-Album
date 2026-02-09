@@ -4,7 +4,7 @@ import { Head, Link } from '@inertiajs/react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import AppLayout from '@/Layouts/AppLayout'; 
 import Polaroid from '@/Components/Polaroid';
-import { getSampleAlbumBySlug } from '@/lib/data';
+import { getAlbumBySlug } from '@/lib/data'; // FIXED: Correct import
 
 export default function AlbumPage({ album, photos, isSample = false, sampleSlug = null }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -28,7 +28,7 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
     
     if (isSampleRoute && sampleSlug) {
       // This is a sample album route - load from lib/data
-      const sampleAlbum = getSampleAlbumBySlug(sampleSlug);
+      const sampleAlbum = getAlbumBySlug(sampleSlug); // FIXED: Changed from getSampleAlbumBySlug
       if (sampleAlbum) {
         setDisplayAlbum({
           id: sampleAlbum.id,
@@ -61,6 +61,7 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
   };
 
   const handleDragEnd = (_, info) => {
+    if (!displayPhotos.length) return;
     if (info.offset.x < -100) setSelectedIndex(prev => (prev + 1) % displayPhotos.length);
     if (info.offset.x > 100) setSelectedIndex(prev => (prev - 1 + displayPhotos.length) % displayPhotos.length);
   };
@@ -99,8 +100,6 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
     <AppLayout hideControls={true}>
       <Head title={displayAlbum?.title || "Album"} />
       
-     
-      
       {/* LOADING SCREEN */}
       <AnimatePresence>
         {isLoading && (
@@ -129,32 +128,53 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
         
         {/* LIGHTBOX */}
         <AnimatePresence>
-          {selectedIndex !== null && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          {selectedIndex !== null && displayPhotos[selectedIndex] && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              className="fixed inset-0 z-[150] flex items-center justify-center p-4"
+            >
               <div className="absolute inset-0 bg-black/20 backdrop-blur-3xl z-0" onClick={() => setSelectedIndex(null)} />
               
-              <button onClick={() => setSelectedIndex(null)} className="absolute top-8 right-8 z-[170] text-4xl hover:scale-125 transition-transform opacity-50 hover:opacity-100">×</button>
+              <button 
+                onClick={() => setSelectedIndex(null)} 
+                className="absolute top-8 right-8 z-[170] text-4xl hover:scale-125 transition-transform opacity-50 hover:opacity-100"
+              >
+                ×
+              </button>
 
               <div className="max-w-6xl w-full flex flex-col md:flex-row items-center gap-12 z-10 pointer-events-none text-left">
                 <motion.div 
-                  key={displayPhotos[selectedIndex]?.id}
-                  drag="x" dragConstraints={{ left: 0, right: 0 }}
+                  key={displayPhotos[selectedIndex].id}
+                  drag="x" 
+                  dragConstraints={{ left: 0, right: 0 }}
                   style={{ x: dragX, rotate: rotateWheel, y: verticalSlope, opacity: opacityWheel }}
                   onDragEnd={handleDragEnd}
                   className="pointer-events-auto cursor-grab active:cursor-grabbing"
                 >
                   <Polaroid 
-                    image={displayPhotos[selectedIndex]?.img} 
-                    date={displayPhotos[selectedIndex]?.date} 
-                    note={displayPhotos[selectedIndex]?.note} 
+                    image={displayPhotos[selectedIndex].img} 
+                    date={displayPhotos[selectedIndex].date} 
+                    note={displayPhotos[selectedIndex].note} 
                     rotation={0} 
                   />
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 pointer-events-auto">
-                  <span className="font-bold uppercase tracking-[0.3em] text-[10px] opacity-50">{displayAlbum?.title}</span>
-                  <h2 className="text-5xl md:text-7xl font-serif mt-2 mb-6">{displayPhotos[selectedIndex]?.date}</h2>
-                  <p className="font-handwriting text-3xl md:text-4xl italic opacity-80">"{displayPhotos[selectedIndex]?.note}"</p>
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  className="flex-1 pointer-events-auto"
+                >
+                  <span className="font-bold uppercase tracking-[0.3em] text-[10px] opacity-50">
+                    {displayAlbum?.title}
+                  </span>
+                  <h2 className="text-5xl md:text-7xl font-serif mt-2 mb-6">
+                    {displayPhotos[selectedIndex].date}
+                  </h2>
+                  <p className="font-handwriting text-3xl md:text-4xl italic opacity-80">
+                    "{displayPhotos[selectedIndex].note}"
+                  </p>
                   {isSampleAlbum && (
                     <div className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg inline-block text-sm">
                       Sample Image • {selectedIndex + 1} of {displayPhotos.length}
@@ -171,7 +191,10 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
           <div className={`max-w-6xl mx-auto z-10 relative transition-all duration-700 ${selectedIndex !== null ? 'blur-xl scale-95 opacity-50' : ''}`}>
             
             <div className="flex items-center justify-between mb-12">
-              <Link href={route('dashboard')} className="font-handwriting text-2xl opacity-60 hover:opacity-100 transition-all flex items-center gap-2">
+              <Link 
+                href={route('dashboard')} 
+                className="font-handwriting text-2xl opacity-60 hover:opacity-100 transition-all flex items-center gap-2"
+              >
                 <span>←</span>
                 <span>Return to Library</span>
               </Link>
@@ -184,10 +207,10 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
               )}
               
               {/* For real albums, show memory count */}
-              {!isSampleAlbum && album?.memories_count && (
+              {!isSampleAlbum && displayAlbum?.memories_count && (
                 <div className="text-sm text-gray-500 flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <span>{album.memories_count} memories</span>
+                  <span>{displayAlbum.memories_count} memories</span>
                 </div>
               )}
             </div>
@@ -239,7 +262,12 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
                   onClick={() => setSelectedIndex(index)}
                   className="cursor-pointer hover:z-20 group relative"
                 >
-                  <Polaroid image={p.img} date={p.date} note={p.note} rotation={p.rot} />
+                  <Polaroid 
+                    image={p.img} 
+                    date={p.date} 
+                    note={p.note} 
+                    rotation={p.rot} 
+                  />
                   {isSampleAlbum && (
                     <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       Sample
@@ -251,17 +279,17 @@ export default function AlbumPage({ album, photos, isSample = false, sampleSlug 
 
             {/* LOAD MORE */}
             {visibleCount < displayPhotos.length && (
-                <div className="mt-32 flex justify-center pb-24">
-                    <button 
-                      onClick={handleSeeMore} 
-                      className="group flex flex-col items-center gap-4 transition-all"
-                    >
-                      <span className="font-serif uppercase tracking-[0.4em] text-[10px] opacity-40 group-hover:opacity-100">
-                        {isExpanding ? 'Loading...' : 'Deepen the story'}
-                      </span>
-                      <div className="h-12 w-[1px] bg-current opacity-20 group-hover:h-20 transition-all duration-500" />
-                    </button>
-                </div>
+              <div className="mt-32 flex justify-center pb-24">
+                <button 
+                  onClick={handleSeeMore} 
+                  className="group flex flex-col items-center gap-4 transition-all"
+                >
+                  <span className="font-serif uppercase tracking-[0.4em] text-[10px] opacity-40 group-hover:opacity-100">
+                    {isExpanding ? 'Loading...' : 'Deepen the story'}
+                  </span>
+                  <div className="h-12 w-[1px] bg-current opacity-20 group-hover:h-20 transition-all duration-500" />
+                </button>
+              </div>
             )}
 
             {/* CREATE YOUR OWN CTA - Only for sample albums */}
