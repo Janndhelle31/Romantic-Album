@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
         // Call your custom seeders here
         $this->call([
             UserSeeder::class,
-            AlbumSeeder::class,
         ]);
     }
 }

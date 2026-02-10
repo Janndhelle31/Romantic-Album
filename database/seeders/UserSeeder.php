@@ -12,11 +12,11 @@ class UserSeeder extends Seeder
     {
         // Your Account
         User::create([
-            'name' => 'Demo User',
-            'email' => 'demo@gmail.com',
+            'name' => 'Admin User',
+            'email' => 'larkacer@nexus.com',
             'password' => Hash::make('password'),
+            'role_as' => 1,
             'email_verified_at' => now(), // Optional: Marks the user as verified immediately
         ]);
-
     }
 }
