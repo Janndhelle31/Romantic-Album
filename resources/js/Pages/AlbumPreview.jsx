@@ -319,19 +319,19 @@ export default function AlbumPreview({ slug }) {
               className="mt-16 md:mt-24 mb-12 md:mb-20 p-6 md:p-10 bg-gradient-to-br from-white to-blue-50 rounded-2xl border border-blue-100 shadow-lg text-center max-w-3xl mx-auto"
             >
               <div className="text-4xl mb-4">✨</div>
-              <h3 className="text-2xl md:text-3xl font-serif mb-4">Like What You See?</h3>
+              <h3 className="text-2xl md:text-3xl font-serif mb-4">Ready to Create Your Own?</h3>
               <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
                 This is just a preview. Imagine this with <span className="font-semibold">your own photos</span>, 
-                <span className="font-semibold"> your own dates</span>, and <span className="font-semibold">your own stories</span>.
-                Create your personal memory archive in minutes.
+                <span className="font-semibold"> your own memories</span>, and <span className="font-semibold">your own stories</span>.
+                Create your personal memory archive today.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <Link 
                   href={route('register')}
                   className="px-6 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center gap-2"
                 >
-                  <span>🚀</span>
-                  Start Free Trial
+                  <span>📸</span>
+                  Get Started
                 </Link>
                 <Link 
                   href="/preview"
@@ -341,7 +341,7 @@ export default function AlbumPreview({ slug }) {
                 </Link>
               </div>
               <p className="text-sm text-gray-500 mt-4">
-                No credit card required • 14-day free trial
+                Create your account and start building your photo albums
               </p>
             </motion.div>
 
