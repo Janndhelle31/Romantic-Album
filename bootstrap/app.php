@@ -14,6 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Add this line to trust all proxies
         $middleware->trustProxies(at: '*');
 
+        // Register your middleware aliases
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'track.referral' => \App\Http\Middleware\TrackReferral::class,
+
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,

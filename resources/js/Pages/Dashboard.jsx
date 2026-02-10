@@ -7,7 +7,7 @@ import Countdown from '@/Components/Countdown';
 import AppLayout from '@/Layouts/AppLayout';
 import { getAllAlbums, sampleSettings as fallbackSettings, getSampleAlbumUrl } from '@/lib/data';
 
-export default function Dashboard({ albums = [], settings = null }) {
+export default function Dashboard({ albums = [], settings = null, music = null, letter_data = null, letter_theme = null }) {
     const [isLoading, setIsLoading] = useState(true);
     
     // Logic Gate: Do we have real data?
@@ -21,8 +21,9 @@ export default function Dashboard({ albums = [], settings = null }) {
 
     const mergedSettings = useMemo(() => ({
         ...fallbackSettings,
-        ...(settings || {})
-    }), [settings]);
+        ...(settings || {}),
+        ...(letter_data || {})
+    }), [settings, letter_data]);
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -43,11 +44,15 @@ export default function Dashboard({ albums = [], settings = null }) {
     const displayAlbums = hasUserAlbums ? albums : (showSampleData ? getAllAlbums() : []);
 
     return (
-        /* CRITICAL FIX: Pass hideControls=false so AppLayout renders ONE MusicPlayer */
-        <AppLayout hideControls={true}>
-            <Head title={mergedSettings.story_title} />
+        <AppLayout 
+            hideControls={true}
+            music={music}
+            letterContent={letter_data}
+            letterTheme={letter_theme}
+        >
+            <Head title={mergedSettings.story_title || "Our Story"} />
 
-            {/* INITIAL LOADING COVER - This should hide the MusicPlayer temporarily */}
+            {/* INITIAL LOADING COVER */}
             <AnimatePresence>
                 {isLoading && (
                     <motion.div 
@@ -55,7 +60,7 @@ export default function Dashboard({ albums = [], settings = null }) {
                         className="fixed inset-0 z-[600] bg-white flex flex-col items-center justify-center"
                     >
                         <h2 className="font-serif text-2xl tracking-[0.2em] uppercase opacity-80">
-                            {mergedSettings.story_title}
+                            {mergedSettings.story_title || "Our Story"}
                         </h2>
                         <div className="mt-4 h-[1px] w-12 bg-current opacity-20 animate-pulse" />
                     </motion.div>
@@ -79,10 +84,10 @@ export default function Dashboard({ albums = [], settings = null }) {
                                     {greeting} — {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                                 </span>
                                 <h1 className="text-5xl md:text-8xl font-serif tracking-tighter leading-[0.9]">
-                                    {mergedSettings.story_title}
+                                    {mergedSettings.story_title || "Our Story"}
                                 </h1>
                                 <p className="font-handwriting text-2xl opacity-60 mt-6 italic">
-                                    {mergedSettings.story_subtitle}
+                                    {mergedSettings.story_subtitle || "A collection of cherished moments"}
                                 </p>
                             </div>
                             <div className="md:text-right">
@@ -131,10 +136,11 @@ export default function Dashboard({ albums = [], settings = null }) {
                                     {getAllAlbums().slice(0, 4).map((sample) => (
                                         <Link key={sample.id} href={getSampleAlbumUrl(sample.slug)} className="group space-y-3">
                                             <div className="aspect-[4/5] bg-zinc-50 rounded-lg overflow-hidden border border-zinc-100">
+                                                {/* Use preview_images for sample data */}
                                                 <img 
-                                                    src={sample.images?.[0]?.img} 
+                                                    src={sample.preview_images?.[0] || sample.images?.[0]?.img || '/placeholder.jpg'} 
                                                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000" 
-                                                    alt="" 
+                                                    alt={sample.title} 
                                                 />
                                             </div>
                                             <p className="text-[10px] uppercase tracking-widest font-bold opacity-60">{sample.title}</p>
@@ -153,11 +159,21 @@ export default function Dashboard({ albums = [], settings = null }) {
 }
 
 function AlbumCard({ album, index, isSample }) {
-    const displayImages = useMemo(() => {
+    // Get preview images from album (either from preview_images or memories)
+    const previewImages = useMemo(() => {
         if (isSample) {
-            return album.images?.slice(0, 3).map(img => img.img) || [];
+            return album.preview_images || album.images?.slice(0, 3).map(img => img.img) || [];
         }
-        return album.preview_images?.slice(0, 3) || [];
+        
+        // For real albums, use preview_images array that comes from backend
+        // The backend should provide full URLs for these images
+        return album.preview_images || [];
+    }, [album, isSample]);
+
+    // Get memory count
+    const memoryCount = useMemo(() => {
+        if (isSample) return album.memories?.length || album.images?.length || 0;
+        return album.memories_count || album.memories?.length || 0;
     }, [album, isSample]);
 
     return (
@@ -185,19 +201,21 @@ function AlbumCard({ album, index, isSample }) {
                 {album.description}
             </p>
 
-            {displayImages.length > 0 && (
+            {previewImages.length > 0 && (
                 <div className="mt-6 flex gap-3">
-                    {displayImages.map((src, i) => (
+                    {previewImages.map((src, i) => (
                         <div 
                             key={i} 
-                            className="relative w-28 h-20 rounded-lg overflow-hidden border border-zinc-100 shadow-sm group/img"
+                            className="relative w-28 h-20 rounded-lg overflow-hidden border border-zinc-100 shadow-sm group/img hover:z-10 hover:scale-105 transition-all duration-500"
                         >
                             <img 
                                 src={src} 
-                                alt="" 
-                                className="w-full h-full object-cover grayscale group-hover/img:grayscale-0 transition-all duration-700" 
+                                alt={`Preview ${i + 1} from ${album.title}`} 
+                                className="w-full h-full object-cover grayscale group-hover/img:grayscale-0 transition-all duration-700 group-hover/img:brightness-110"
+                                loading="lazy"
                             />
-                            <div className="absolute inset-0 bg-black/5 group-hover/img:bg-transparent transition-colors" />
+                            {/* Gradient overlay on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-500" />
                         </div>
                     ))}
                 </div>
@@ -206,7 +224,7 @@ function AlbumCard({ album, index, isSample }) {
             <div className="flex items-center gap-4 mt-6">
                 <div className="h-[1px] bg-current opacity-20 w-12 group-hover:w-24 transition-all duration-700" />
                 <span className="font-serif uppercase tracking-[0.2em] text-[10px] opacity-40 group-hover:opacity-100 transition-opacity">
-                    Explore {isSample ? 'Demo' : 'Memories'} {album.memories_count > 0 && `(${album.memories_count})`}
+                    Explore {isSample ? 'Demo' : 'Memories'} {memoryCount > 0 && `(${memoryCount})`}
                 </span>
             </div>
         </>

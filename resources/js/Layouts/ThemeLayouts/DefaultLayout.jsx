@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import MusicPlayer from "@/Components/MusicPlayer";
 import LetterModal from "@/Components/LetterModal";
+import FloatingLetter from "@/Components/FloatingLetter";
 
 const polaroids = [
     { id: 1, src: "https://images.unsplash.com/photo-1518133910546-b6c2fb7d79e3?w=300", top: "5%", left: "5%", rotate: -15, duration: 25 },
@@ -30,13 +31,12 @@ export default function DefaultLayout({ children, current_music, letter_content,
     const handleEntry = () => {
         setIsEntryClicked(true);
         sessionStorage.setItem('bookOpened', 'true');
-        // If there's no countdown in MusicPlayer, content shows via onComplete
     };
 
     if (!mounted) return <div className="bg-[#FFFBF0] min-h-screen" />;
 
     return (
-        <div className="font-serif bg-[#FFFBF0] antialiased selection:bg-yellow-100 min-h-screen relative">
+        <div className="font-serif bg-[#FFFBF0] antialiased selection:bg-yellow-100 min-h-screen relative overflow-x-hidden">
             
             {/* 1. SCATTERED BACKGROUND POLAROIDS */}
             {createPortal(
@@ -57,12 +57,12 @@ export default function DefaultLayout({ children, current_music, letter_content,
                 document.body
             )}
 
-            {/* 2. MUSIC PLAYER - Only starts logic when entry is clicked */}
+            {/* 2. MUSIC PLAYER */}
             {!hideControls && (
                 <MusicPlayer 
                     url={current_music?.url} 
                     displayName={current_music?.display_name}
-                    skipCountdown={showContent} // Skip countdown if already seen
+                    skipCountdown={showContent}
                     start={isEntryClicked} 
                     onComplete={() => setShowContent(true)} 
                     theme="default"
@@ -79,7 +79,7 @@ export default function DefaultLayout({ children, current_music, letter_content,
                     >
                         <h1 className="text-5xl md:text-7xl text-gray-800 mb-4">For My Favorite Person</h1>
                         <p className="font-handwriting text-3xl text-pink-400 mb-10">A collection of our sunshine moments</p>
-                        <button onClick={handleEntry} className="px-10 py-4 bg-yellow-400 text-white rounded-full text-xl shadow-xl hover:bg-yellow-500 transition-all">
+                        <button onClick={handleEntry} className="px-10 py-4 bg-yellow-400 text-white rounded-full text-xl shadow-xl hover:bg-yellow-500 transition-all active:scale-95">
                             Open Memory Book 🎁
                         </button>
                     </motion.div>
@@ -87,26 +87,19 @@ export default function DefaultLayout({ children, current_music, letter_content,
             </AnimatePresence>
 
             {/* 4. MAIN CONTENT AREA */}
-            <main className={`relative z-10 transition-opacity duration-1000 ${showContent ? "opacity-100" : "opacity-0"}`}>
+            {/* pb-32 ensures the floating letter doesn't block the last bit of content on mobile */}
+            <main className={`relative z-10 transition-opacity duration-1000 pb-32 md:pb-12 ${showContent ? "opacity-100" : "opacity-0"}`}>
                 {children}
             </main>
 
             {/* 5. FLOATING LETTER */}
             <AnimatePresence>
                 {showContent && !hideControls && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        onClick={() => setIsLetterOpen(true)}
-                        className="fixed bottom-10 right-10 z-[200]"
-                    >
-                         <div className="bg-white p-4 rounded-2xl border-2 border-pink-100 shadow-2xl hover:scale-110 transition-transform">
-                            <span className="text-4xl">✉️</span>
-                        </div>
-                    </motion.button>
+                    <FloatingLetter onClick={() => setIsLetterOpen(true)} />
                 )}
             </AnimatePresence>
 
+            {/* 6. MODAL */}
             <AnimatePresence>
                 {isLetterOpen && (
                     <LetterModal onClose={() => setIsLetterOpen(false)} data={letter_content} theme="default" />

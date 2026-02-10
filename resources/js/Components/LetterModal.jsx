@@ -1,12 +1,9 @@
 import { motion } from "framer-motion";
 
 export default function LetterModal({ onClose, data, theme = "default" }) {
-  const {
-    recipient = "My Dearest",
-    message = "I wanted to surprise you...",
-    closing = "Forever yours",
-    sender = "Me"
-  } = data || {};
+  // Use the data passed via props directly
+  // No more static fallbacks here
+  const { recipient, message, closing, sender } = data || {};
 
   // Theme Configuration Object
   const themes = {

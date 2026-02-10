@@ -3,124 +3,179 @@
 namespace App\Http\Controllers;
 
 use App\Models\Album;
+use App\Models\Setting;
+use App\Models\MusicSetting;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
 class AlbumController extends Controller
 {
-    /**
-     * Revised Index: Now ensures setting (music/letter) are sent to AppLayout
-     */
 public function index()
 {
     $user = auth()->user();
-    
-    // Debug: Check if user has setting relationship
-    \Log::info('User ID: ' . $user->id);
-    \Log::info('User settings: ', $user->setting()->exists() ? ['exists' => true] : ['exists' => false]);
-    
-    $setting = $user->setting()->firstOrCreate([
-        'user_id' => $user->id
-    ], [
-        'music_display_name' => 'Our Soundtrack',
-        'music_url' => '/music/bg-track.mp3', // Make sure this is a valid path
-        'letter_content' => 'Welcome to our memory album. This is where our story begins...'
-    ]);
-    
-    \Log::info('Setting values: ', [
-        'music_url' => $setting->music_url,
-        'music_display_name' => $setting->music_display_name,
-        'letter_content' => $setting->letter_content
-    ]);
-    
 
-        $albums = Album::where('user_id', $user->id)
-            ->with(['memories' => function($query) {
-                $query->latest()->select('id', 'album_id', 'image_path');
-            }])
-            ->withCount('memories')
-            ->latest()
-            ->get()
-            ->map(function ($album) {
-                return [
-                    'id' => $album->id,
-                    'title' => $album->title,
-                    'slug' => $album->slug,
-                    'description' => $album->description,
-                    'icon' => $album->icon,
-                    'memories_count' => $album->memories_count,
-                    'preview_images' => $album->memories->take(3)->map(function ($memory) {
-                        return str_contains($memory->image_path, 'http') 
-                            ? $memory->image_path 
-                            : asset('storage/' . $memory->image_path);
-                    }),
-                ];
-            });
+    // 1. Handle Letter Settings
+    $setting = $user->setting()->firstOrCreate(
+        ['user_id' => $user->id],
+        [
+            'letter_recipient' => 'My Dearest',
+            'letter_message'   => 'Welcome to our memory album. This is where our story begins...',
+            'letter_closing'   => 'Forever yours',
+            'letter_sender'    => $user->name ?? 'Me',
+            'letter_theme'     => 'default'
+        ]
+    );
 
-        return Inertia::render('Dashboard', [
-            'albums' => $albums,
-            // These props are what AppLayout is looking for:
-            'current_music' => [
-                'url' => $setting->music_url,
-                'display_name' => $setting->music_display_name,
-            ],
-            'letter_content' => $setting->letter_content,
-        ]);
+    // 2. Handle Music Settings with Public Fallback
+    $musicSetting = $user->musicSetting()->first();
+
+    // If musicSetting exists and has a path, use it from storage. 
+    // Otherwise, point to the public/music/bg-track.mp3 file.
+    $musicUrl = ($musicSetting && $musicSetting->file_path)
+        ? asset('storage/' . $musicSetting->file_path)
+        : asset('music/bg-track.mp3');
+
+    $musicData = [
+        'url'         => $musicUrl,
+        'displayName' => $musicSetting->display_name ?? 'Our Soundtrack',
+        'theme'       => $setting->letter_theme,
+    ];
+
+    // 3. Build Letter Data
+    $letterData = [
+        'recipient' => $setting->letter_recipient,
+        'message'   => $setting->letter_message ?: $setting->letter_content,
+        'closing'   => $setting->letter_closing,
+        'sender'    => $setting->letter_sender,
+    ];
+
+    // 4. Fetch Albums and Preview Images
+    $albums = Album::where('user_id', $user->id)
+        ->with(['memories' => function ($query) {
+            $query->latest()->select('id', 'album_id', 'image_path', 'thumbnail_path');
+        }])
+        ->withCount('memories')
+        ->latest()
+        ->get()
+        ->map(function ($album) {
+            return [
+                'id'             => $album->id,
+                'title'          => $album->title,
+                'slug'           => $album->slug,
+                'description'    => $album->description,
+                'icon'           => $album->icon,
+                'memories_count' => $album->memories_count,
+                'preview_images' => $album->memories->take(3)->map(function ($memory) {
+                    $path = $memory->thumbnail_path ?: $memory->image_path;
+                    return str_contains($path, 'http') 
+                        ? $path 
+                        : asset('storage/' . $path);
+                }),
+            ];
+        });
+
+    // 5. Return to Inertia
+    return Inertia::render('Dashboard', [
+        'albums'       => $albums,
+        'music'        => $musicData,
+        'letter_data'  => $letterData,
+        'letter_theme' => $setting->letter_theme,
+    ]);
+}
+
+   public function show(Album $album)
+{
+    // 1. Authorization Check
+    if ((int) $album->user_id !== (int) auth()->id()) {
+        abort(403, 'Unauthorized access.');
     }
 
+    $user = auth()->user();
+    
+    // 2. Fetch Letter Settings
+    $setting = $user->setting()->firstOrCreate(
+        ['user_id' => $user->id],
+        [
+            'letter_recipient' => 'My Dearest',
+            'letter_message' => 'Welcome to our memory album. This is where our story begins...',
+            'letter_closing' => 'Forever yours',
+            'letter_sender' => $user->name ?? 'Me',
+            'letter_theme' => 'default'
+        ]
+    );
 
-    /**
-     * Revised Show: Now passes global setting alongside album-specific data
-     */
-    public function show(Album $album)
-    {
-        if ((int) $album->user_id !== (int) auth()->id()) {
-            abort(403, 'Unauthorized access.');
-        }
+    // 3. Handle Music Settings with Public Fallback
+    $musicSetting = $user->musicSetting()->first();
 
-        $user = auth()->user();
-        $setting = $user->setting; // Assuming relation exists
-        $album->load('memories');
+    // Determine URL: Use storage if user uploaded a file, otherwise use public default
+    $musicUrl = ($musicSetting && $musicSetting->file_path)
+        ? asset('storage/' . $musicSetting->file_path)
+        : asset('music/bg-track.mp3');
 
-        return Inertia::render('AlbumPage', [
-            // Global props for AppLayout
-            'current_music' => [
-                'url' => $setting->music_url ?? '',
-                'display_name' => $setting->music_display_name ?? 'Our Soundtrack',
-            ],
-            'letter_content' => $setting->letter_content ?? '',
-            
-            // Local props for the Page
-            'album' => [
-                'id' => 'album_' . $album->id,
-                'title' => $album->title,
-                'slug' => $album->slug,
-                'description' => $album->description,
-                'icon' => $album->icon,
-                'theme' => $album->theme,
-            ],
-            'photos' => $album->memories->map(fn($m) => [
-                'id' => $m->id,
-                'img' => str_contains($m->image_path, 'http')
-                    ? $m->image_path
-                    : asset('storage/' . $m->image_path),
-                'date' => $m->date_text,
-                'note' => $m->note,
-                'rot' => $m->rotation,
-            ])
-        ]);
-    }
+    // 4. Build Letter Data
+    $letterData = [
+        'recipient' => $setting->letter_recipient,
+        'message' => $setting->letter_message ?: $setting->letter_content,
+        'closing' => $setting->letter_closing,
+        'sender' => $setting->letter_sender,
+    ];
+
+    // 5. Load Memories and Map Photos
+    $album->load('memories');
+
+    $photos = $album->memories->map(fn($m) => [
+        'id' => $m->id,
+        'img' => str_contains($m->image_path, 'http')
+            ? $m->image_path
+            : asset('storage/' . $m->image_path),
+        'date' => $m->date_text,
+        'note' => $m->note,
+        'rot' => $m->rotation,
+    ]);
+
+    return Inertia::render('AlbumPage', [
+        'music' => [
+            'url' => $musicUrl,
+            'displayName' => $musicSetting->display_name ?? 'Our Soundtrack',
+            'theme' => $setting->letter_theme,
+        ],
+        'letter_data' => $letterData,
+        'letter_theme' => $setting->letter_theme,
+        'album' => [
+            'id' => 'album_' . $album->id,
+            'title' => $album->title,
+            'slug' => $album->slug,
+            'description' => $album->description,
+            'icon' => $album->icon,
+            'theme' => $album->theme,
+        ],
+        'photos' => $photos
+    ]);
+}
 
     public function showSample($slug)
     {
+        // Sample letter data
+        $letterData = [
+            'recipient' => 'Dear Visitor',
+            'message' => 'This is a sample album showcasing the features of our memory book application. Feel free to explore!',
+            'closing' => 'Warmly',
+            'sender' => 'The Team',
+        ];
+
         return Inertia::render('AlbumPage', [
             'album' => null,
             'photos' => [],
             'isSample' => true,
             'sampleSlug' => $slug,
-            // Fallbacks for samples
-            'current_music' => ['url' => '', 'display_name' => 'Sample Track'],
-            'letter_content' => 'This is a sample letter.'
+            // Music data for sample
+            'music' => [
+                'url' => '/music/sample.mp3',
+                'displayName' => 'Sample Love Song', // Custom display name
+                'theme' => 'default',
+            ],
+            'letter_data' => $letterData,
+            'letter_theme' => 'default'
         ]);
     }
 }

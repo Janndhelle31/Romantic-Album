@@ -26,6 +26,12 @@ class MusicSetting extends Model
      */
     public function getDisplayNameAttribute()
     {
-        return $this->attributes['display_name'] ?? $this->attributes['file_name'] ?? 'Unknown';
+        // If display_name is set in database, use it
+        if (isset($this->attributes['display_name']) && !empty($this->attributes['display_name'])) {
+            return $this->attributes['display_name'];
+        }
+        
+        // Otherwise fall back to file_name
+        return $this->attributes['file_name'] ?? 'Unknown';
     }
 }

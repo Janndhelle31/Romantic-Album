@@ -1,58 +1,154 @@
 import React from 'react';
-import { useForm, Head } from '@inertiajs/react';
-import AppLayout from '@/Layouts/AppLayout';
+import { Link } from '@inertiajs/react'; // Add this import
+import AdminDashboardLayout from '@/Layouts/AdminDashboardLayout'; // Make sure this is the correct path
 
-export default function AdminDashboard({ albums }) {
-    const albumForm = useForm({ title: '', icon: '💖', description: '' });
-    const memoryForm = useForm({ album_id: '', image: null, date_text: '', note: '' });
-
-    const submitAlbum = (e) => {
-        e.preventDefault();
-        albumForm.post(route('admin.albums.store'), { onSuccess: () => albumForm.reset() });
-    };
-
-    const submitMemory = (e) => {
-        e.preventDefault();
-        memoryForm.post(route('admin.memories.store'), { onSuccess: () => memoryForm.reset() });
-    };
-
+export default function Dashboard({ stats, recent_users, recent_memories, recent_albums }) {
     return (
-        <div className="max-w-4xl mx-auto p-8 font-sans">
-            <Head title="Admin Dashboard" />
-            <h1 className="text-3xl font-serif text-pink-500 mb-10 text-center">Memory Manager</h1>
+        <AdminDashboardLayout>
+            <div className="p-6">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
+                    <p className="text-gray-600 mt-1">System statistics and recent activity</p>
+                </div>
 
-            <div className="grid md:grid-cols-2 gap-12">
-                {/* CREATE ALBUM */}
-                <section className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
-                    <h2 className="text-xl font-bold mb-4 text-gray-700">New Album</h2>
-                    <form onSubmit={submitAlbum} className="space-y-4">
-                        <input type="text" placeholder="Album Title (e.g. Dates)" className="w-full rounded-lg border-gray-200"
-                            value={albumForm.data.title} onChange={e => albumForm.setData('title', e.target.value)} />
-                        <input type="text" placeholder="Icon (e.g. 🍕)" className="w-full rounded-lg border-gray-200"
-                            value={albumForm.data.icon} onChange={e => albumForm.setData('icon', e.target.value)} />
-                        <button type="submit" className="bg-pink-400 text-white px-4 py-2 rounded-lg hover:bg-pink-500">Create Album</button>
-                    </form>
-                </section>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-sm">Total Users</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total_users}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-600">👥</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-sm">Total Albums</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total_albums}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-600">📁</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-sm">Total Memories</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total_memories}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-600">🖼️</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-gray-500 text-sm">Music Files</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total_music_files}</p>
+                                <p className="text-xs text-gray-500">{stats.total_music_size}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-600">🎵</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                {/* CREATE MEMORY */}
-                <section className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
-                    <h2 className="text-xl font-bold mb-4 text-gray-700">Add Memory</h2>
-                    <form onSubmit={submitMemory} className="space-y-4">
-                        <select className="w-full rounded-lg border-gray-200" onChange={e => memoryForm.setData('album_id', e.target.value)}>
-                            <option value="">Select Album</option>
-                            {albums.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
-                        </select>
-                        <input type="file" onChange={e => memoryForm.setData('image', e.target.files[0])} className="text-sm" />
-                        <input type="text" placeholder="Date/Title" className="w-full rounded-lg border-gray-200"
-                            value={memoryForm.data.date_text} onChange={e => memoryForm.setData('date_text', e.target.value)} />
-                        <textarea placeholder="The Note" className="w-full rounded-lg border-gray-200"
-                            value={memoryForm.data.note} onChange={e => memoryForm.setData('note', e.target.value)} />
-                        <button type="submit" className="bg-pink-400 text-white px-4 py-2 rounded-lg hover:bg-pink-500">Upload Memory</button>
-                    </form>
-                </section>
+                {/* Recent Activity Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Recent Users */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-bold text-gray-800">Recent Users</h2>
+                            <Link 
+                                href={route('admin.users')}
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                            >
+                                View All
+                            </Link>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {recent_users?.map((user) => (
+                                <div key={user.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                                    <div>
+                                        <p className="font-medium text-gray-800">{user.name}</p>
+                                        <p className="text-sm text-gray-500">{user.email}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500">{user.albums_count} albums</p>
+                                        <p className="text-xs text-gray-500">{user.memories_count} memories</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Recent Albums */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-bold text-gray-800">Recent Albums</h2>
+                            <Link 
+                                href={route('admin.albums')}
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                            >
+                                View All
+                            </Link>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {recent_albums?.map((album) => (
+                                <div key={album.id} className="p-2 hover:bg-gray-50 rounded">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-lg">{album.icon}</span>
+                                        <p className="font-medium text-gray-800">{album.title}</p>
+                                    </div>
+                                    <div className="flex justify-between text-sm text-gray-500">
+                                        <span>By {album.user_name}</span>
+                                        <span>{album.memories_count} memories</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Recent Memories */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-bold text-gray-800">Recent Memories</h2>
+                            <Link 
+                                href={route('admin.memories')}
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                            >
+                                View All
+                            </Link>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {recent_memories?.map((memory) => (
+                                <div key={memory.id} className="p-2 hover:bg-gray-50 rounded">
+                                    <p className="font-medium text-gray-800">{memory.date_text}</p>
+                                    <p className="text-sm text-gray-600 truncate">{memory.note}</p>
+                                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                        <span>Album: {memory.album_title}</span>
+                                        <span>By {memory.user_name}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </AdminDashboardLayout>
     );
 }
-
-AdminDashboard.layout = page => <AppLayout children={page} />;

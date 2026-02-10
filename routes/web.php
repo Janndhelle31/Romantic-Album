@@ -15,22 +15,13 @@ use Inertia\Inertia;
 // 1. LANDING PAGE
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('dashboard')
+        ? redirect()->route('dashboard') // This goes to user dashboard
         : Inertia::render('Auth/Login');
 });
 
 
-// Public access route
-Route::get('/preview', [PublicController::class, 'preview'])->name('public.preview');
 
-// Add this new route for preview albums
-Route::get('/preview/album/{slug}', [PublicController::class, 'previewAlbum'])
-    ->name('preview.album.show');
 
-// Keep your existing sample album route
-Route::get('/sample-albums/{slug}', [AlbumController::class, 'showSample'])
-    ->name('sample-albums.show');
-    
 // 2. MAGIC LOGIN FOR GF (NO AUTH NEEDED!)
 Route::get('/magic-login/{token}', function ($token) {
     $user = User::where('login_token', $token)
@@ -63,50 +54,86 @@ Route::post('/generate-magic-login', function () {
     return back();
 })->middleware('auth');
 
-// 4. THE MAIN STORY (Dashboard)
-Route::get('/dashboard', [AlbumController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
-// 5. THE ALBUM DETAILS
-Route::get('/albums/{album}', [AlbumController::class, 'show'])
-    ->middleware(['auth'])
-    ->name('albums.show');
-
-// 6. MANAGEMENT ROUTES
-Route::middleware(['auth'])->group(function () {
+// ============================
+// USER ROUTES (Regular Users)
+// ============================
+Route::middleware(['auth', 'verified'])->group(function () {
+    // 4. THE MAIN STORY (User Dashboard)
+    Route::get('/dashboard', [AlbumController::class, 'index'])->name('dashboard');
+    
+    // 5. THE ALBUM DETAILS
+    Route::get('/albums/{album}', [AlbumController::class, 'show'])->name('albums.show');
+    
+    // 6. MANAGEMENT ROUTES
     Route::get('/manage', [UserDashboardController::class, 'index'])->name('manage.index');
     Route::post('/manage/album', [UserDashboardController::class, 'storeAlbum'])->name('manage.album.store');
     Route::post('/manage/memory', [UserDashboardController::class, 'storeMemory'])->name('manage.memory.store');
     Route::post('/memories/{memory}', [UserDashboardController::class, 'updateMemory'])->name('manage.memory.update');
     Route::post('/manage/letter', [UserDashboardController::class, 'storeLetter'])->name('letter.update');
     Route::post('/manage/music', [UserDashboardController::class, 'updateMusic'])->name('music.update');
+Route::delete('/music-settings', action: [UserDashboardController::class, 'destroyMusic'])->name('music.destroy');
     Route::post('/settings/story', [SettingController::class, 'update'])->name('settings.story.update');
-});
-
-// 7. SETTINGS ROUTES
-Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
-Route::put('/profile', [SettingsController::class, 'updateProfile'])->name('settings.updateProfile');
-Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.updatePassword');
-Route::delete('/account', [SettingsController::class, 'deleteAccount'])->name('settings.deleteAccount');
-Route::post('/settings', [SettingsController::class, 'store'])->name('settings.store');
-
-// 8. PROFILE MANAGEMENT
-Route::middleware('auth')->group(function () {
+        Route::delete('manage/memory/{memory}', [UserDashboardController::class, 'destroyMemory'])
+        ->name('manage.memory.destroy');
+    // 7. SETTINGS ROUTES
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::put('/profile', [SettingsController::class, 'updateProfile'])->name('settings.updateProfile');
+    Route::put('/settings/password', [SettingsController::class, 'updatePassword'])->name('settings.updatePassword');
+    Route::delete('/account', [SettingsController::class, 'deleteAccount'])->name('settings.deleteAccount');
+    Route::post('/settings', [SettingsController::class, 'store'])->name('settings.store');
+    
+    // 8. PROFILE MANAGEMENT
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/theme/update', [ProfileController::class, 'updateTheme'])->name('theme.update');
+    
+    Route::get('/manage/design', [ProfileController::class, 'designIndex'])->name('manage.design');
 });
 
-Route::get('/manage', [ProfileController::class, 'manageIndex'])->name('manage.index');
-Route::get('/manage/design', [ProfileController::class, 'designIndex'])->name('manage.design');
+// ============================
+// PUBLIC ROUTES (No Auth Needed)
+// ============================
+Route::get('/preview', [PublicController::class, 'preview'])->name('public.preview');
+Route::get('/preview/album/{slug}', [PublicController::class, 'previewAlbum'])
+    ->name('preview.album.show');
+Route::get('/sample-albums/{slug}', [AlbumController::class, 'showSample'])
+    ->name('sample-albums.show');
 
-// 9. ADMIN ROUTES
-Route::middleware(['auth'])->prefix('admin')->group(function () {
-    Route::get('/', [AdminController::class, 'index'])->name('admin.index');
-    Route::post('/albums', [AdminController::class, 'storeAlbum'])->name('admin.albums.store');
-    Route::post('/memories', [AdminController::class, 'storeMemory'])->name('admin.memories.store');
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Admin Dashboard - ACCESS AT: /admin/dashboard
+    Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+    
+    // User Management
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::get('/users/{user}', [AdminController::class, 'userDetail'])->name('users.detail');
+    Route::delete('/users/{user}/delete', [AdminController::class, 'deleteUser'])->name('users.delete');
+    Route::post('/users/{user}/toggle-payment', [AdminController::class, 'togglePaymentStatus'])->name('users.toggle-payment');
+    Route::get('/albums/{album}', [AlbumController::class, 'show'])->name('albums.show');
+
+    // Content Management
+    Route::get('/albums', [AdminController::class, 'albums'])->name('albums');
+    Route::delete('/albums/{album}', [AdminController::class, 'deleteAlbum'])->name('albums.delete');
+    
+    Route::get('/memories', [AdminController::class, 'memories'])->name('memories');
+    Route::delete('/memories/{memory}', [AdminController::class, 'deleteMemory'])->name('memories.delete');
+    
+    // Music Settings Management
+    Route::get('/music-settings', [AdminController::class, 'musicSettings'])->name('music-settings');
+    Route::delete('/music-settings/{musicSetting}', [AdminController::class, 'deleteMusicSetting'])->name('music-settings.delete');
+    
+    // Admin Settings
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+    
+    // Old routes for compatibility
+    Route::get('/', [AdminController::class, 'index'])->name('index');
+    Route::post('/albums', [AdminController::class, 'storeAlbum'])->name('albums.store');
+    Route::post('/memories', [AdminController::class, 'storeMemory'])->name('memories.store');
+    
+    // Optional: Role management routes
+    Route::post('/users/{user}/make-admin', [AdminController::class, 'makeAdmin'])->name('users.make-admin');
+    Route::post('/users/{user}/remove-admin', [AdminController::class, 'removeAdmin'])->name('users.remove-admin');
 });
 
 require __DIR__ . '/auth.php';

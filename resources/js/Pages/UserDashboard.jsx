@@ -9,6 +9,10 @@ export default function UserDashboard({ albums }) {
     const [editId, setEditId] = useState(null);
     const [showAlbumFirstPrompt, setShowAlbumFirstPrompt] = useState(albums.length === 0);
 
+    // --- Limits ---
+    const MAX_ALBUMS = 9; // Maximum 9 albums total
+    const MAX_MEMORIES_PER_ALBUM = 6; // Maximum 6 memories per album
+
     // --- Forms ---
     const albumForm = useForm({ title: '', icon: '💖', description: '' });
     
@@ -40,6 +44,17 @@ export default function UserDashboard({ albums }) {
         }
     }, [albums]);
 
+    // Check if album has reached memory limit
+    const hasReachedMemoryLimit = (albumId) => {
+        const album = albums.find(a => a.id === albumId);
+        return album && album.memories && album.memories.length >= MAX_MEMORIES_PER_ALBUM;
+    };
+
+    // Check if user has reached album limit
+    const hasReachedAlbumLimit = () => {
+        return albums.length >= MAX_ALBUMS;
+    };
+
     // --- Actions ---
     const startEdit = (memory) => {
         setEditId(memory.id);
@@ -65,6 +80,13 @@ export default function UserDashboard({ albums }) {
 
     const submitMemory = (e) => {
         e.preventDefault();
+        
+        // Check if album has reached memory limit (only for new memories, not edits)
+        if (!editId && hasReachedMemoryLimit(memoryForm.data.album_id)) {
+            alert(`This album has reached the maximum limit of ${MAX_MEMORIES_PER_ALBUM} memories. Please select another album or delete existing memories.`);
+            return;
+        }
+        
         const config = {
             forceFormData: true,
             onSuccess: () => {
@@ -87,6 +109,13 @@ export default function UserDashboard({ albums }) {
 
     const submitAlbum = (e) => {
         e.preventDefault();
+        
+        // Check if user has reached album limit
+        if (hasReachedAlbumLimit()) {
+            alert(`You have reached the maximum limit of ${MAX_ALBUMS} albums. Please delete an existing album to create a new one.`);
+            return;
+        }
+        
         albumForm.post(route('manage.album.store'), { 
             onSuccess: () => {
                 albumForm.reset();
@@ -132,7 +161,8 @@ export default function UserDashboard({ albums }) {
                             <h2 className="text-xl font-bold text-gray-800 mb-2">Create Your First Album</h2>
                             <p className="text-gray-600 mb-6 max-w-md">
                                 Start by creating an album to organize your memories. 
-                                You can create albums for different themes like "Vacations", "Anniversaries", or "Everyday Moments".
+                                You can create up to <span className="font-bold text-pink-500">9 albums</span>, 
+                                each holding up to <span className="font-bold text-pink-500">6 memories</span>.
                             </p>
                             
                             {/* Quick Album Creation Form */}
@@ -165,7 +195,7 @@ export default function UserDashboard({ albums }) {
                                     </div>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-3 text-center">
-                                    After creating your first album, you can start adding memories!
+                                    Limit: {MAX_ALBUMS} albums total, {MAX_MEMORIES_PER_ALBUM} memories per album
                                 </p>
                             </form>
                         </div>
@@ -184,7 +214,7 @@ export default function UserDashboard({ albums }) {
                         <div className="text-center py-8">
                             <span className="text-4xl block mb-4">📸</span>
                             <p className="text-gray-500 font-medium">Create an album first to add memories</p>
-                            <p className="text-sm text-gray-400 mt-2">Use the form on the right to create your first album</p>
+                            <p className="text-sm text-gray-400 mt-2">Each album can hold up to {MAX_MEMORIES_PER_ALBUM} memories</p>
                         </div>
                     ) : (
                         <>
@@ -211,9 +241,34 @@ export default function UserDashboard({ albums }) {
                                 >
                                     <option value="">Select Album</option>
                                     {albums.map(a => (
-                                        <option key={a.id} value={a.id}>{a.icon} {a.title}</option>
+                                        <option 
+                                            key={a.id} 
+                                            value={a.id}
+                                            disabled={hasReachedMemoryLimit(a.id) && !editId}
+                                            className={hasReachedMemoryLimit(a.id) && !editId ? 'text-red-400 bg-red-50' : ''}
+                                        >
+                                            {a.icon} {a.title} 
+                                            {(a.memories?.length || 0) > 0 && (
+                                                <span className="text-gray-400 text-xs ml-2">
+                                                    ({a.memories?.length || 0}/{MAX_MEMORIES_PER_ALBUM})
+                                                </span>
+                                            )}
+                                            {hasReachedMemoryLimit(a.id) && !editId && ' (Full)'}
+                                        </option>
                                     ))}
                                 </select>
+                                
+                                {/* Album memory limit warning */}
+                                {memoryForm.data.album_id && hasReachedMemoryLimit(memoryForm.data.album_id) && !editId && (
+                                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                                        <p className="text-red-600 text-sm font-medium">
+                                            ⚠️ This album has reached the limit of {MAX_MEMORIES_PER_ALBUM} memories
+                                        </p>
+                                        <p className="text-red-500 text-xs mt-1">
+                                            Please select another album or delete existing memories
+                                        </p>
+                                    </div>
+                                )}
                                 
                                 <div className={`group relative border-2 border-dashed rounded-xl p-6 text-center transition-all bg-gray-50/30 overflow-hidden ${editId ? 'border-blue-200' : 'border-gray-100'}`}>
                                     <input 
@@ -224,7 +279,12 @@ export default function UserDashboard({ albums }) {
                                         accept="image/*" 
                                         required={!editId}
                                     />
-                                    <label htmlFor="dash-photo" className="cursor-pointer block active:scale-95 transition-transform">
+                                    <label 
+                                        htmlFor="dash-photo" 
+                                        className={`cursor-pointer block active:scale-95 transition-transform ${
+                                            memoryForm.data.album_id && hasReachedMemoryLimit(memoryForm.data.album_id) && !editId ? 'pointer-events-none opacity-50' : ''
+                                        }`}
+                                    >
                                         {previewUrl ? (
                                             <div className="relative">
                                                 <img src={previewUrl} className="mx-auto h-48 md:h-56 object-cover rounded-lg shadow-md mb-2 border-4 border-white" alt="Preview" />
@@ -253,8 +313,8 @@ export default function UserDashboard({ albums }) {
                                     />
                                     <button 
                                         type="submit" 
-                                        disabled={memoryForm.processing} 
-                                        className={`text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 ${
+                                        disabled={memoryForm.processing || (memoryForm.data.album_id && hasReachedMemoryLimit(memoryForm.data.album_id) && !editId)} 
+                                        className={`text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                                             editId ? 'bg-blue-500 shadow-blue-100 hover:bg-blue-600' : 'bg-pink-400 shadow-pink-100 hover:bg-pink-500'
                                         }`}
                                     >
@@ -281,8 +341,11 @@ export default function UserDashboard({ albums }) {
                                 {albums.length === 0 ? 'Create First Album' : 'New Album'}
                             </h2>
                             {albums.length > 0 && (
-                                <span className="text-xs font-medium text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
-                                    {albums.length} album{albums.length !== 1 ? 's' : ''}
+                                <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                                    hasReachedAlbumLimit() ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'
+                                }`}>
+                                    {albums.length}/{MAX_ALBUMS} albums
+                                    {hasReachedAlbumLimit() && ' (Maximum reached)'}
                                 </span>
                             )}
                         </div>
@@ -291,29 +354,49 @@ export default function UserDashboard({ albums }) {
                                 type="text" 
                                 value={albumForm.data.title} 
                                 onChange={e => albumForm.setData('title', e.target.value)} 
-                                className="flex-1 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-sm focus:ring-pink-200 focus:outline-none" 
-                                placeholder={albums.length === 0 ? "Our First Year Together..." : "New Album Title..."} 
+                                className={`flex-1 border-gray-100 rounded-xl p-4 text-sm focus:ring-2 focus:outline-none ${
+                                    hasReachedAlbumLimit() ? 'bg-gray-50/50 text-gray-400 cursor-not-allowed' : 'bg-gray-50/50 focus:ring-pink-200'
+                                }`} 
+                                placeholder={hasReachedAlbumLimit() ? "Album limit reached (max " + MAX_ALBUMS + ")" : (albums.length === 0 ? "Our First Year Together..." : "New Album Title...")} 
                                 required 
+                                disabled={hasReachedAlbumLimit()}
                             />
                             <div className="flex gap-2">
                                 <input 
                                     type="text" 
                                     value={albumForm.data.icon} 
                                     onChange={e => albumForm.setData('icon', e.target.value)} 
-                                    className="w-20 border-gray-100 bg-gray-50/50 rounded-xl p-4 text-center text-lg focus:ring-pink-200 focus:outline-none" 
+                                    className={`w-20 border-gray-100 rounded-xl p-4 text-center text-lg focus:ring-2 focus:outline-none ${
+                                        hasReachedAlbumLimit() ? 'bg-gray-50/50 text-gray-400 cursor-not-allowed' : 'bg-gray-50/50 focus:ring-pink-200'
+                                    }`} 
+                                    disabled={hasReachedAlbumLimit()}
                                 />
                                 <button 
                                     type="submit" 
-                                    disabled={albumForm.processing} 
-                                    className="flex-1 sm:flex-none bg-gray-900 text-white px-6 rounded-xl font-bold text-sm h-[54px] active:scale-95 transition-all hover:bg-black"
+                                    disabled={albumForm.processing || hasReachedAlbumLimit()} 
+                                    className={`flex-1 sm:flex-none px-6 rounded-xl font-bold text-sm h-[54px] active:scale-95 transition-all ${
+                                        hasReachedAlbumLimit() ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black'
+                                    }`}
                                 >
-                                    {albumForm.processing ? 'Creating...' : albums.length === 0 ? 'Start Journey' : 'Create'}
+                                    {albumForm.processing ? 'Creating...' : 
+                                     hasReachedAlbumLimit() ? 'Limit Reached' :
+                                     albums.length === 0 ? 'Start Journey' : 'Create'}
                                 </button>
                             </div>
                         </form>
-                        {albums.length === 0 && (
-                            <p className="text-xs text-gray-400 mt-3">
-                                Tip: Create albums like "Vacations", "Anniversaries", or "Date Nights"
+                        {!hasReachedAlbumLimit() ? (
+                            albums.length === 0 ? (
+                                <p className="text-xs text-gray-400 mt-3">
+                                    Tip: Create albums like "Vacations", "Anniversaries", or "Date Nights"
+                                </p>
+                            ) : (
+                                <p className="text-xs text-gray-400 mt-3">
+                                    You can create up to {MAX_ALBUMS} albums total, each holding {MAX_MEMORIES_PER_ALBUM} memories
+                                </p>
+                            )
+                        ) : (
+                            <p className="text-xs text-red-500 mt-3 font-medium">
+                                ⚠️ You have reached the maximum of {MAX_ALBUMS} albums. Delete an existing album to create a new one.
                             </p>
                         )}
                     </div>
@@ -327,7 +410,9 @@ export default function UserDashboard({ albums }) {
                             </h2>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center p-4 bg-pink-50 rounded-xl">
-                                    <div className="text-2xl font-bold text-pink-600">{albums.length}</div>
+                                    <div className="text-2xl font-bold text-pink-600">
+                                        {albums.length}<span className="text-sm text-pink-400">/{MAX_ALBUMS}</span>
+                                    </div>
                                     <div className="text-xs text-gray-600">Albums</div>
                                 </div>
                                 <div className="text-center p-4 bg-blue-50 rounded-xl">
@@ -336,6 +421,11 @@ export default function UserDashboard({ albums }) {
                                     </div>
                                     <div className="text-xs text-gray-600">Total Memories</div>
                                 </div>
+                            </div>
+                            <div className="mt-4 p-3 bg-amber-50 rounded-xl">
+                                <p className="text-xs text-amber-700 text-center">
+                                    📦 Limit: {MAX_ALBUMS} albums total, {MAX_MEMORIES_PER_ALBUM} memories per album
+                                </p>
                             </div>
                         </div>
                     )}
@@ -346,43 +436,80 @@ export default function UserDashboard({ albums }) {
             {albums.length > 0 && (
                 <section className="mt-8">
                     <div className="flex justify-between items-center mb-4 px-2">
-                        <h3 className="text-xl font-serif text-gray-800">Your Collections</h3>
-                        <span className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full">
-                            {albums.reduce((total, album) => total + (album.memories?.length || 0), 0)} memories total
+                        <h3 className="text-xl font-serif text-gray-800">Your Collections ({MAX_ALBUMS} max)</h3>
+                        <span className={`text-sm px-3 py-1 rounded-full ${
+                            hasReachedAlbumLimit() ? 'bg-red-100 text-red-600' : 'text-gray-500 bg-gray-50'
+                        }`}>
+                            {albums.length}/{MAX_ALBUMS} albums • {albums.reduce((total, album) => total + (album.memories?.length || 0), 0)} memories
                         </span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-4 px-1 no-scrollbar snap-x">
-                        {albums.map(album => (
-                            <motion.div 
-                                key={album.id} 
-                                className="flex-shrink-0 w-32 snap-start relative"
-                            >
-                                <motion.button 
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => setActiveAlbum(activeAlbum === album.id ? null : album.id)}
-                                    className={`w-full p-4 rounded-[1.5rem] border transition-all ${
-                                        activeAlbum === album.id ? 'bg-pink-500 border-pink-500 text-white shadow-lg' : 'bg-white border-pink-50 text-gray-600 hover:bg-pink-50'
-                                    }`}
+                        {albums.map(album => {
+                            const isMemoryFull = hasReachedMemoryLimit(album.id);
+                            const memoryCount = album.memories?.length || 0;
+                            
+                            return (
+                                <motion.div 
+                                    key={album.id} 
+                                    className="flex-shrink-0 w-32 snap-start relative"
                                 >
-                                    <span className="text-2xl block mb-1">{album.icon}</span>
-                                    <h4 className="font-bold text-xs truncate">{album.title}</h4>
-                                    <span className="text-[10px] mt-1 opacity-70">
-                                        {album.memories?.length || 0} item{album.memories?.length !== 1 ? 's' : ''}
-                                    </span>
-                                </motion.button>
-                                
-                                {/* Delete album button (only if empty) */}
-                                {(!album.memories || album.memories.length === 0) && (
-                                    <button
-                                        onClick={() => deleteAlbum(album.id)}
-                                        className="absolute -top-2 -right-2 bg-red-100 text-red-500 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-200 transition-colors"
-                                        title="Delete empty album"
+                                    <motion.button 
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setActiveAlbum(activeAlbum === album.id ? null : album.id)}
+                                        className={`w-full p-4 rounded-[1.5rem] border transition-all ${
+                                            activeAlbum === album.id ? 'bg-pink-500 border-pink-500 text-white shadow-lg' : 
+                                            isMemoryFull ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-white border-pink-50 text-gray-600 hover:bg-pink-50'
+                                        }`}
                                     >
-                                        ×
-                                    </button>
-                                )}
+                                        <span className="text-2xl block mb-1">{album.icon}</span>
+                                        <h4 className="font-bold text-xs truncate">{album.title}</h4>
+                                        <span className={`text-[10px] mt-1 ${isMemoryFull ? 'text-rose-600 font-bold' : 'opacity-70'}`}>
+                                            {memoryCount}/{MAX_MEMORIES_PER_ALBUM} {isMemoryFull && '✅'}
+                                        </span>
+                                    </motion.button>
+                                    
+                                    {/* Memory full indicator badge */}
+                                    {isMemoryFull && (
+                                        <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                                            FULL
+                                        </div>
+                                    )}
+                                    
+                                    {/* Delete album button (only if empty) */}
+                                    {(memoryCount === 0) && (
+                                        <button
+                                            onClick={() => deleteAlbum(album.id)}
+                                            className="absolute -top-2 -right-2 bg-red-100 text-red-500 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-200 transition-colors"
+                                            title="Delete empty album"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
+                        
+                        {/* Add album placeholder if not at limit */}
+                        {!hasReachedAlbumLimit() && (
+                            <motion.div 
+                                className="flex-shrink-0 w-32 snap-start"
+                                whileHover={{ scale: 1.02 }}
+                            >
+                                <button
+                                    onClick={() => {
+                                        document.querySelector('input[name="title"]')?.focus();
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className="w-full h-full p-4 rounded-[1.5rem] border-2 border-dashed border-pink-200 bg-pink-50/30 text-pink-400 hover:bg-pink-100 transition-colors flex flex-col items-center justify-center"
+                                >
+                                    <span className="text-2xl block mb-1">+</span>
+                                    <h4 className="font-bold text-xs">New Album</h4>
+                                    <span className="text-[10px] mt-1 text-pink-300">
+                                        {MAX_ALBUMS - albums.length} remaining
+                                    </span>
+                                </button>
                             </motion.div>
-                        ))}
+                        )}
                     </div>
 
                     {/* --- MEMORY DRAWER --- */}
@@ -396,15 +523,24 @@ export default function UserDashboard({ albums }) {
                             >
                                 <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-4 border border-pink-100 shadow-sm">
                                     <div className="flex items-center justify-between mb-4 px-2">
-                                        <h4 className="font-bold text-gray-700 flex items-center gap-2">
-                                            <span className="text-pink-500">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-pink-500 text-xl">
                                                 {albums.find(a => a.id === activeAlbum)?.icon}
                                             </span>
-                                            {albums.find(a => a.id === activeAlbum)?.title}
-                                        </h4>
-                                        <span className="text-xs text-gray-500">
-                                            {albums.find(a => a.id === activeAlbum)?.memories?.length || 0} memories
-                                        </span>
+                                            <h4 className="font-bold text-gray-700">
+                                                {albums.find(a => a.id === activeAlbum)?.title}
+                                            </h4>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs ${hasReachedMemoryLimit(activeAlbum) ? 'text-rose-600 font-bold' : 'text-gray-500'}`}>
+                                                {albums.find(a => a.id === activeAlbum)?.memories?.length || 0}/{MAX_MEMORIES_PER_ALBUM} memories
+                                            </span>
+                                            {hasReachedMemoryLimit(activeAlbum) && (
+                                                <span className="text-xs bg-rose-100 text-rose-700 px-2 py-1 rounded-full">
+                                                    Full
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     
                                     {albums.find(a => a.id === activeAlbum)?.memories?.length > 0 ? (
@@ -448,6 +584,22 @@ export default function UserDashboard({ albums }) {
                                                     Select this album to add memories
                                                 </button>
                                             )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Add memory button when album is not full */}
+                                    {!hasReachedMemoryLimit(activeAlbum) && (
+                                        <div className="mt-4 text-center">
+                                            <button
+                                                onClick={() => {
+                                                    memoryForm.setData('album_id', activeAlbum);
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}
+                                                className="inline-flex items-center gap-2 bg-pink-500 text-white px-5 py-3 rounded-full font-bold text-sm hover:bg-pink-600 transition-colors active:scale-95"
+                                            >
+                                                <span>+</span>
+                                                Add Memory to This Album ({albums.find(a => a.id === activeAlbum)?.memories?.length || 0}/{MAX_MEMORIES_PER_ALBUM})
+                                            </button>
                                         </div>
                                     )}
                                 </div>
