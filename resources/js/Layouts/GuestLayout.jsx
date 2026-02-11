@@ -1,4 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link } from '@inertiajs/react';
 
 export default function GuestLayout({ children }) {
@@ -10,9 +9,7 @@ export default function GuestLayout({ children }) {
             <div className="w-full max-w-md relative z-10">
                 {/* Header & Navigation */}
                 <div className="text-center mb-10">
-                    <Link href="/" className="inline-block transition-opacity hover:opacity-80">
-                        <ApplicationLogo className="h-10 w-10 fill-current text-zinc-900" />
-                    </Link>
+             
                     
                     <div className="mt-6 flex flex-col items-center gap-4">
                         <div className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-zinc-200 shadow-sm">
