@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -277,21 +279,54 @@ class AdminController extends Controller
     /**
      * Toggle user payment status
      */
-    public function togglePaymentStatus(Request $request, User $user)
-    {
-        // Prevent toggling admin users
-        if ($user->role_as == 1) {
-            return back()->with('error', 'Cannot toggle payment status for admin users.');
-        }
+   public function togglePaymentStatus(Request $request, User $user)
+{
+    // Prevent toggling admin users
+    if ($user->role_as == 1) {
+        Log::warning('Attempted to toggle payment status for admin user', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'attempted_by' => auth()->id(),
+            'attempted_at' => now()->toDateTimeString()
+        ]);
         
-        $newStatus = $user->is_paid ? 0 : 1;
-        $user->update(['is_paid' => $newStatus]);
-        
-        $statusText = $newStatus ? 'paid' : 'unpaid';
-        
-        return back()->with('success', "User payment status updated to {$statusText}.");
+        return back()->with('error', 'Cannot toggle payment status for admin users.');
     }
-
+    
+    $oldStatus = $user->is_paid;
+    $newStatus = $user->is_paid ? 0 : 1;
+    
+    Log::debug('Before update - User payment status', [
+        'user_id' => $user->id,
+        'is_paid_from_model' => $user->is_paid,
+        'is_paid_from_db' => DB::table('users')->where('id', $user->id)->value('is_paid'),
+        'new_status_to_set' => $newStatus
+    ]);
+    
+    // Try direct DB update as a test
+    $updated = DB::table('users')
+        ->where('id', $user->id)
+        ->update(['is_paid' => $newStatus]);
+    
+    // Refresh the model from database
+    $user->refresh();
+    
+    Log::info('User payment status toggled', [
+        'user_id' => $user->id,
+        'user_email' => $user->email,
+        'old_status' => $oldStatus,
+        'new_status' => $newStatus,
+        'changed_by' => auth()->id(),
+        'changed_at' => now()->toDateTimeString(),
+        'db_update_successful' => $updated ? 'yes' : 'no',
+        'is_paid_after_refresh' => $user->is_paid,
+        'is_paid_in_db' => DB::table('users')->where('id', $user->id)->value('is_paid')
+    ]);
+    
+    $statusText = $newStatus ? 'paid' : 'unpaid';
+    
+    return back()->with('success', "User payment status updated to {$statusText}.");
+}
     // Albums List - GET /admin/albums
     public function albums()
     {
