@@ -331,17 +331,6 @@ export default function UserdashboardLayout({ children }) {
                                     >
                                         I Understand, Will Pay ₱{finalPrice}
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            router.post('/payment-reminder', {}, {
-                                                preserveScroll: true,
-                                            });
-                                            setShowPaymentModal(false);
-                                        }}
-                                        className="w-full py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Remind Me Later
-                                    </button>
                                 </div>
                             </div>
                         </motion.div>

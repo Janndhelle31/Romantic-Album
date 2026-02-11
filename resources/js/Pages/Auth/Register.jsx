@@ -25,7 +25,8 @@ export default function Register() {
         <GuestLayout>
             <Head title="Join the Magic ✨" />
 
-            <div className="text-center mb-8">
+            {/* HEADER */}
+            <div className="text-center mb-6">
                 <motion.div 
                     initial={{ scale: 0.8, opacity: 0 }} 
                     animate={{ scale: 1, opacity: 1 }}
@@ -33,12 +34,44 @@ export default function Register() {
                 >
                     <span className="text-3xl">🎨</span>
                 </motion.div>
-                <h1 className="text-3xl font-serif text-gray-800">Create Account</h1>
-                <p className="font-handwriting text-xl text-pink-400 mt-1">Start your journey with us</p>
+
+                <h1 className="text-3xl font-serif text-gray-800">
+                    Create Account
+                </h1>
+
+                <p className="font-handwriting text-xl text-pink-400 mt-1">
+                    Start your journey with us
+                </p>
             </div>
 
+            {/* INFO CARD */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-8 bg-pink-50 border border-pink-100 rounded-2xl p-5 text-center"
+            >
+                <p className="text-sm text-gray-700 leading-relaxed">
+                    Create a romantic album and share it as a link or QR code.
+                    <br />
+                    Send the link online, or print the QR code and let them scan it from your gift 💐
+                    <br /><br />
+                    After logging in, you can manage and edit your album at:
+                    <br />
+                    <a
+                        href="https://romantic-album.larkacer-nexus.com/manage"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-pink-500 font-semibold hover:underline break-all"
+                    >
+                        https://romantic-album.larkacer-nexus.com/manage
+                    </a>
+                </p>
+            </motion.div>
+
+            {/* FORM */}
             <form onSubmit={submit} className="space-y-5">
-                {/* NAME FIELD */}
+                {/* NAME */}
                 <div>
                     <label className="block text-xs font-bold text-pink-300 uppercase tracking-widest mb-2 ml-1">
                         Full Name
@@ -57,7 +90,7 @@ export default function Register() {
                     <InputError message={errors.name} className="mt-2" />
                 </div>
 
-                {/* EMAIL FIELD */}
+                {/* EMAIL */}
                 <div>
                     <label className="block text-xs font-bold text-pink-300 uppercase tracking-widest mb-2 ml-1">
                         Email Address
@@ -76,7 +109,7 @@ export default function Register() {
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                {/* PASSWORD FIELDS */}
+                {/* PASSWORDS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-pink-300 uppercase tracking-widest mb-2 ml-1">
@@ -112,13 +145,12 @@ export default function Register() {
                         />
                     </div>
                 </div>
-                
-                {/* PASSWORD ERRORS */}
+
                 {(errors.password || errors.password_confirmation) && (
                     <InputError message={errors.password || errors.password_confirmation} />
                 )}
 
-                {/* BUTTON */}
+                {/* SUBMIT */}
                 <div className="pt-2">
                     <PrimaryButton 
                         className="w-full justify-center bg-pink-400 hover:bg-pink-500 active:bg-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-pink-100 transition-all transform hover:-translate-y-0.5" 
@@ -126,11 +158,13 @@ export default function Register() {
                     >
                         {processing ? 'Creating Magic...' : 'Register Now ✨'}
                     </PrimaryButton>
-                    
-                    {/* FOOTER LINK */}
+
                     <p className="text-center text-sm text-gray-600 mt-6">
                         Already part of the family?{' '}
-                        <Link href={route('login')} className="text-pink-400 font-bold hover:underline">
+                        <Link
+                            href={route('login')}
+                            className="text-pink-400 font-bold hover:underline"
+                        >
                             Sign In
                         </Link>
                     </p>
