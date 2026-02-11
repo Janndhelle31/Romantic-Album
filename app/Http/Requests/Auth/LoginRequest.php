@@ -57,23 +57,26 @@ class LoginRequest extends FormRequest
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function ensureIsNotRateLimited(): void
-    {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
-        }
-
-        event(new Lockout($this));
-
-        $seconds = RateLimiter::availableIn($this->throttleKey());
-
-        throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
-        ]);
+  public function ensureIsNotRateLimited(): void
+{
+    // Force array cache to avoid database cache table errors
+    config(['cache.default' => 'array']);
+    
+    if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        return;
     }
+
+    event(new Lockout($this));
+
+    $seconds = RateLimiter::availableIn($this->throttleKey());
+
+    throw ValidationException::withMessages([
+        'email' => trans('auth.throttle', [
+            'seconds' => $seconds,
+            'minutes' => ceil($seconds / 60),
+        ]),
+    ]);
+}
 
     /**
      * Get the rate limiting throttle key for the request.
