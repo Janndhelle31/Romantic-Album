@@ -69,6 +69,7 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'referred_by' => $referrer ? $referrer->id : null,
+            'is_paid' => 1, // ✅ SET PAID STATUS TO 1 ON REGISTRATION
         ]);
 
         // Create referral record if referrer exists

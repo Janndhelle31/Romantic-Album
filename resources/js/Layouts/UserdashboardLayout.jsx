@@ -4,11 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function UserdashboardLayout({ children }) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [magicLink, setMagicLink] = useState('');
-    const [generating, setGenerating] = useState(false);
     const [showQR, setShowQR] = useState(false);
     const [qrCodeUrl, setQrCodeUrl] = useState('');
     const [downloading, setDownloading] = useState(false);
+    const [showRegenerateWarning, setShowRegenerateWarning] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const { url, props } = usePage();
     
@@ -17,12 +16,17 @@ export default function UserdashboardLayout({ children }) {
     // Check if user needs to pay
     const needsPayment = user?.is_paid === 0;
     
+    // Check if user has existing magic link
+    const hasExistingLink = !!user?.magic_link;
+    const existingMagicLink = user?.magic_link || '';
+    const existingQRCode = user?.qr_code_url || '';
+    
     // Fixed price
     const finalPrice = 180; 
     
-    // Get flash message and magic link from Inertia
+    // Get flash message from Inertia
     const flashMessage = props.flash?.success;
-    const flashMagicLink = props.flash?.magic_link;
+    const wasRegenerated = props.flash?.was_regenerated;
 
     // Show payment modal if user hasn't paid
     useEffect(() => {
@@ -34,86 +38,24 @@ export default function UserdashboardLayout({ children }) {
         }
     }, [needsPayment]);
 
-    // Update magic link when flash data arrives
+    // Set existing magic link and QR code if available
     useEffect(() => {
-        if (flashMagicLink) {
-            setMagicLink(flashMagicLink);
-            copyToClipboard(flashMagicLink);
-            generateQRCode(flashMagicLink);
+        if (existingMagicLink) {
+            // Generate QR code from magic link if exists
+            generateQRCode(existingMagicLink);
+            
+            // If QR code exists in database, use it
+            if (existingQRCode) {
+                setQrCodeUrl(existingQRCode);
+            }
         }
-    }, [flashMagicLink]);
+    }, [existingMagicLink, existingQRCode]);
 
     // Generate QR code URL
     const generateQRCode = (link) => {
         const encodedLink = encodeURIComponent(link);
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodedLink}&format=png&qzone=2`;
         setQrCodeUrl(qrUrl);
-    };
-
-    // Function to save QR code as image
-    const saveQRCode = async () => {
-        if (!qrCodeUrl) return;
-        
-        setDownloading(true);
-        try {
-            const response = await fetch(qrCodeUrl);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            
-            const date = new Date();
-            const filename = `magic-login-${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}.png`;
-            link.download = filename;
-            
-            document.body.appendChild(link);
-            link.click();
-            
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(blobUrl);
-                setDownloading(false);
-                alert('✅ QR code downloaded! Send the image to your partner.');
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error downloading QR code:', error);
-            alert('❌ Failed to download QR code. Try copying the link instead.');
-            setDownloading(false);
-        }
-    };
-
-    const saveQRCodeAlternative = () => {
-        if (!qrCodeUrl) return;
-        
-        const newWindow = window.open(qrCodeUrl, '_blank');
-        if (newWindow) {
-            setTimeout(() => {
-                alert('QR code opened in new tab. Right-click and "Save Image As..." to download.');
-            }, 500);
-        } else {
-            alert('Please allow popups to download the QR code.');
-        }
-    };
-
-    const generateMagicLink = async () => {
-        if (needsPayment) {
-            setShowPaymentModal(true);
-            return;
-        }
-        
-        setGenerating(true);
-        try {
-            await router.post('/generate-magic-login', {}, {
-                preserveScroll: true,
-                preserveState: true,
-            });
-        } catch (error) {
-            alert('Failed to generate magic link');
-        } finally {
-            setGenerating(false);
-        }
     };
 
     const copyToClipboard = async (text) => {
@@ -129,22 +71,6 @@ export default function UserdashboardLayout({ children }) {
             document.body.removeChild(textArea);
             alert('✅ Magic link copied! Send this to your partner!');
         }
-    };
-
-    const handleCopyMagicLink = async () => {
-        if (!magicLink) {
-            await generateMagicLink();
-            return;
-        }
-        await copyToClipboard(magicLink);
-    };
-
-    const toggleQRCode = () => {
-        if (!magicLink) {
-            alert('Generate a magic link first!');
-            return;
-        }
-        setShowQR(!showQR);
     };
 
     const safeRoute = (routeName, fallback = '/') => {
@@ -177,6 +103,19 @@ export default function UserdashboardLayout({ children }) {
             group: 'Customize',
             items: [
                 { name: 'Page Design', href: safeRoute('manage.design'), icon: '🎨', mobile: true }, 
+            ]
+        },
+        {
+            group: 'Share',
+            items: [
+                { 
+                    name: 'Share Access', 
+                    href: safeRoute('share.access'), 
+                    icon: '🔗', 
+                    mobile: true,
+                    badge: hasExistingLink && !needsPayment ? 'Active' : null,
+                    badgeColor: 'green'
+                },
             ]
         }
     ];
@@ -217,6 +156,39 @@ export default function UserdashboardLayout({ children }) {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
             
+            {/* --- REGENERATE WARNING TOAST --- */}
+            <AnimatePresence>
+                {showRegenerateWarning && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[200] max-w-md w-full bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-lg"
+                    >
+                        <div className="flex items-start">
+                            <div className="flex-shrink-0">
+                                <span className="text-yellow-600 text-xl">⚠️</span>
+                            </div>
+                            <div className="ml-3 flex-1">
+                                <p className="text-sm font-medium text-yellow-800">
+                                    Previous access links revoked
+                                </p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                    The old magic link and QR code are no longer valid. 
+                                    Your partner must use this new one.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setShowRegenerateWarning(false)}
+                                className="ml-auto text-yellow-700 hover:text-yellow-900"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* --- PAYMENT VERIFICATION MODAL --- */}
             <AnimatePresence>
                 {showPaymentModal && needsPayment && (
@@ -350,6 +322,11 @@ export default function UserdashboardLayout({ children }) {
                             Pay ₱{finalPrice}
                         </span>
                     )}
+                    {hasExistingLink && !needsPayment && (
+                        <span className="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded">
+                            🔗 Shared
+                        </span>
+                    )}
                 </div>
                 <button 
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
@@ -410,7 +387,7 @@ export default function UserdashboardLayout({ children }) {
                                                 key={link.name} 
                                                 href={link.href} 
                                                 onClick={(e) => handleLinkClick(link, e)}
-                                                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                                                className={`flex items-center justify-between gap-3 p-3 rounded-lg transition-colors ${
                                                     url === link.href 
                                                         ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-500' 
                                                         : needsPayment && link.href.includes('manage')
@@ -418,10 +395,17 @@ export default function UserdashboardLayout({ children }) {
                                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
                                                 }`}
                                             >
-                                                <span className="text-lg">{link.icon}</span> 
-                                                <span className="font-medium text-sm">{link.name}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-lg">{link.icon}</span> 
+                                                    <span className="font-medium text-sm">{link.name}</span>
+                                                </div>
+                                                {link.badge && (
+                                                    <span className={`text-xs px-2 py-1 rounded-full bg-${link.badgeColor}-100 text-${link.badgeColor}-800`}>
+                                                        {link.badge}
+                                                    </span>
+                                                )}
                                                 {needsPayment && link.href.includes('manage') && (
-                                                    <span className="ml-auto text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                                                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
                                                         🔒
                                                     </span>
                                                 )}
@@ -430,82 +414,6 @@ export default function UserdashboardLayout({ children }) {
                                     </div>
                                 </div>
                             ))}
-
-                            {/* --- SHARE ACCESS --- */}
-                            <div className="pt-6 border-t border-gray-100">
-                                <button 
-                                    onClick={handleCopyMagicLink}
-                                    disabled={generating || needsPayment}
-                                    className="w-full flex items-center justify-center gap-2 p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 mb-3"
-                                >
-                                    <span>{generating ? '⏳' : needsPayment ? '🔒' : '🔗'}</span>
-                                    <span className="font-medium text-sm">
-                                        {needsPayment ? 'Pay to Share' : generating ? 'Generating...' : 'Share Access'}
-                                    </span>
-                                </button>
-                                
-                                {/* QR Code Button */}
-                                {magicLink && !needsPayment && (
-                                    <button 
-                                        onClick={toggleQRCode}
-                                        className="w-full flex items-center justify-center gap-2 p-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <span className="text-lg">📱</span>
-                                        <span className="font-medium text-sm">
-                                            {showQR ? 'Hide QR' : 'Show QR Code'}
-                                        </span>
-                                    </button>
-                                )}
-                                
-                                {/* QR Code Display */}
-                                {showQR && qrCodeUrl && !needsPayment && (
-                                    <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg text-center">
-                                        <img 
-                                            src={qrCodeUrl} 
-                                            alt="QR Code" 
-                                            className="w-40 h-40 mx-auto mb-4"
-                                        />
-                                        <div className="space-y-2">
-                                            <button 
-                                                onClick={saveQRCode}
-                                                disabled={downloading}
-                                                className="w-full py-2 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 disabled:opacity-50"
-                                            >
-                                                {downloading ? 'Downloading...' : 'Download QR Code'}
-                                            </button>
-                                            <button 
-                                                onClick={saveQRCodeAlternative}
-                                                className="w-full py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200"
-                                            >
-                                                Open in New Tab
-                                            </button>
-                                            <button 
-                                                onClick={() => copyToClipboard(magicLink)}
-                                                className="w-full py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200"
-                                            >
-                                                Copy Link
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {/* Flash Message */}
-                                {flashMessage && !needsPayment && (
-                                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                        <p className="text-green-700 text-sm flex items-center gap-2">
-                                            <span>✅</span>
-                                            <span>{flashMessage}</span>
-                                        </p>
-                                    </div>
-                                )}
-                                
-                                {/* Magic Link Preview */}
-                                {magicLink && !showQR && !needsPayment && (
-                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p className="text-blue-700 text-xs truncate">{magicLink}</p>
-                                    </div>
-                                )}
-                            </div>
                         </nav>
 
                         {/* User Profile & Logout */}
@@ -517,10 +425,20 @@ export default function UserdashboardLayout({ children }) {
                                 <div>
                                     <p className="font-medium text-gray-800 text-sm">{user?.name || 'You'}</p>
                                     <p className="text-xs text-gray-500 truncate">{user?.email || ''}</p>
-                                    <div className="mt-1">
+                                    <div className="mt-1 flex gap-1 flex-wrap">
                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${needsPayment ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                                             {needsPayment ? `🔒 Pay ₱${finalPrice}` : '✅ Active'}
                                         </span>
+                                        {hasExistingLink && !needsPayment && (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                🔗 Shared
+                                            </span>
+                                        )}
+                                        {existingQRCode && !needsPayment && (
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                📱 QR Saved
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -568,8 +486,8 @@ export default function UserdashboardLayout({ children }) {
                 )}
 
                 <div className="p-4 md:p-8 max-w-5xl mx-auto">
-                    {/* Flash Message (Desktop) */}
-                    {flashMessage && !isMobileMenuOpen && !needsPayment && (
+                    {/* Flash Message */}
+                    {flashMessage && !needsPayment && (
                         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                             <p className="text-green-700 text-sm flex items-center gap-2">
                                 <span>✅</span>
@@ -611,7 +529,7 @@ export default function UserdashboardLayout({ children }) {
                 })}
                 
                 {/* Payment Button if not paid */}
-                {needsPayment ? (
+                {needsPayment && (
                     <button 
                         onClick={() => setShowPaymentModal(true)}
                         className="flex flex-col items-center gap-1 text-red-600"
@@ -619,77 +537,8 @@ export default function UserdashboardLayout({ children }) {
                         <span className="text-xl">💰</span>
                         <span className="text-xs font-medium">Pay</span>
                     </button>
-                ) : (
-                    <>
-                        {/* Mobile Magic Link Button */}
-                        <button 
-                            onClick={handleCopyMagicLink} 
-                            className={`flex flex-col items-center gap-1 ${magicLink ? 'text-blue-600' : 'text-gray-500'}`}
-                        >
-                            <span className="text-xl">{generating ? '⏳' : '🔗'}</span>
-                            <span className="text-xs font-medium">Share</span>
-                        </button>
-                        
-                        {/* Mobile QR Code Button */}
-                        {magicLink && (
-                            <button 
-                                onClick={toggleQRCode} 
-                                className="flex flex-col items-center gap-1 text-gray-500"
-                            >
-                                <span className="text-xl">{showQR ? '📱' : '🔲'}</span>
-                                <span className="text-xs font-medium">QR</span>
-                            </button>
-                        )}
-                    </>
                 )}
             </div>
-
-            {/* --- QR CODE MODAL FOR MOBILE --- */}
-            {showQR && qrCodeUrl && !needsPayment && (
-                <div className="md:hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <motion.div 
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="bg-white rounded-xl p-6 max-w-sm w-full"
-                    >
-                        <div className="text-center">
-                            <h3 className="font-semibold text-gray-800 mb-4">QR Code</h3>
-                            <img 
-                                src={qrCodeUrl} 
-                                alt="QR Code" 
-                                className="w-48 h-48 mx-auto mb-4"
-                            />
-                            <div className="space-y-3 mb-4">
-                                <button 
-                                    onClick={saveQRCode}
-                                    disabled={downloading}
-                                    className="w-full py-3 bg-blue-500 text-white rounded-lg font-medium disabled:opacity-50"
-                                >
-                                    {downloading ? 'Downloading...' : 'Download QR Code'}
-                                </button>
-                                <button 
-                                    onClick={saveQRCodeAlternative}
-                                    className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium"
-                                >
-                                    Open in New Tab
-                                </button>
-                                <button 
-                                    onClick={() => copyToClipboard(magicLink)}
-                                    className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium"
-                                >
-                                    Copy Link Instead
-                                </button>
-                            </div>
-                            <button 
-                                onClick={() => setShowQR(false)}
-                                className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg font-medium"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
         </div>
     );
 }

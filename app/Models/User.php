@@ -23,6 +23,13 @@ class User extends Authenticatable
         'login_token',
         'login_token_expires_at',
         'role_as',
+        'is_paid',
+        'payment_reference',
+        'payment_proof_path',
+        'payment_status',
+        'last_magic_login_at',
+        'qr_code_url',
+        'magic_link',
     ];
 
     protected static function boot()
@@ -49,9 +56,14 @@ class User extends Authenticatable
             'password' => 'hashed',
             'login_token_expires_at' => 'datetime',
             'role_as' => 'integer',
+            'is_paid' => 'integer',
+            'last_magic_login_at' => 'datetime',
         ];
     }
 
+    /**
+     * Generate a new login token (30 days expiration)
+     */
     public function generateLoginToken()
     {
         $token = Str::random(64);
@@ -64,22 +76,108 @@ class User extends Authenticatable
         return $token;
     }
 
-    // Add this relationship - albums
+    /**
+     * Get existing magic link or create new one
+     */
+    public function getOrCreateMagicLink()
+    {
+        // Check if token exists and is still valid
+        if ($this->login_token && $this->login_token_expires_at && $this->login_token_expires_at->isFuture()) {
+            return route('magic.login', ['token' => $this->login_token]);
+        }
+        
+        // Generate new token if none exists or expired
+        $token = $this->generateLoginToken();
+        return route('magic.login', ['token' => $token]);
+    }
+
+    /**
+     * Get or create QR code URL
+     */
+    public function getOrCreateQRCode()
+    {
+        if ($this->qr_code_url) {
+            return $this->qr_code_url;
+        }
+        
+        $link = $this->getOrCreateMagicLink();
+        $encodedLink = urlencode($link);
+        $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={$encodedLink}&format=png&qzone=2";
+        
+        $this->update(['qr_code_url' => $qrUrl]);
+        
+        return $qrUrl;
+    }
+
+    /**
+     * Revoke magic link
+     */
+    public function revokeMagicLink()
+    {
+        $this->update([
+            'login_token' => null,
+            'login_token_expires_at' => null,
+            'qr_code_url' => null,
+        ]);
+    }
+
+    /**
+     * Extend magic link expiration
+     */
+    public function extendMagicLink()
+    {
+        if ($this->login_token) {
+            $this->update([
+                'login_token_expires_at' => now()->addDays(30)
+            ]);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if user has valid magic link
+     */
+    public function hasValidMagicLink(): bool
+    {
+        return $this->login_token && 
+               $this->login_token_expires_at && 
+               $this->login_token_expires_at->isFuture();
+    }
+
+    /**
+     * Get magic link data
+     */
+    public function getMagicLinkData(): ?array
+    {
+        if (!$this->hasValidMagicLink()) {
+            return null;
+        }
+
+        return [
+            'link' => route('magic.login', ['token' => $this->login_token]),
+            'expires_at' => $this->login_token_expires_at,
+            'days_remaining' => now()->diffInDays($this->login_token_expires_at, false),
+            'qr_code_url' => $this->qr_code_url,
+            'has_link' => true,
+        ];
+    }
+
+    // Relationships
     public function albums(): HasMany
     {
         return $this->hasMany(Album::class);
     }
 
-    // Add this relationship - memories (through albums)
     public function memories()
     {
         return $this->hasManyThrough(
             Memory::class, 
             Album::class,
-            'user_id', // Foreign key on albums table
-            'album_id', // Foreign key on memories table
-            'id',       // Local key on users table
-            'id'        // Local key on albums table
+            'user_id',
+            'album_id',
+            'id',
+            'id'
         );
     }
 
@@ -98,9 +196,14 @@ class User extends Authenticatable
         return $this->hasOne(Setting::class);
     }
 
-    // Helper method to check if user is admin
+    // Helper methods
     public function isAdmin(): bool
     {
         return $this->role_as == 1;
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->is_paid == 1;
     }
 }

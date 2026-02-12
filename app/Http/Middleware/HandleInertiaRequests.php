@@ -2,11 +2,35 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Inertia\Middleware;
+use Illuminate\Support\Facades\Auth;use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+
+
+  public function __invoke($token)
+    {
+        $user = User::where('magic_link_token', $token)->first();
+
+        if (!$user) {
+            return redirect()->route('login')
+                ->with('error', 'Invalid or expired magic link.');
+        }
+
+        // Log the user in
+        Auth::login($user);
+
+        // Optional: Log the access
+        $user->update([
+            'last_magic_link_access' => now(),
+            'magic_link_access_count' => ($user->magic_link_access_count ?? 0) + 1
+        ]);
+
+        // Redirect to dashboard
+        return redirect()->route('dashboard');
+    }
     /**
      * The root template that is loaded on the first page visit.
      *

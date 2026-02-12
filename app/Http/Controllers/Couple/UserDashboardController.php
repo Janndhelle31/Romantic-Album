@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Encoders\WebpEncoder;
+use Illuminate\Support\Facades\DB;
 
 class UserDashboardController extends Controller
 {
@@ -475,7 +476,7 @@ public function destroyMusic()
     /**
      * Generate magic login link for partner (only for paid users)
      */
-    public function generateMagicLogin(Request $request)
+     public function generateMagicLogin(Request $request)
     {
         // Check payment status
         if (auth()->user()->is_paid === 0) {
@@ -484,14 +485,40 @@ public function destroyMusic()
 
         try {
             $user = auth()->user();
-            $token = Str::random(60);
             
-            // Store token in database (you might want to create a MagicLink model)
-            \DB::table('magic_links')->updateOrInsert(
+            // Check if user already has a valid magic link (not expired)
+            $existingLink = DB::table('magic_links')
+                ->where('user_id', $user->id)
+                ->where('expires_at', '>', now())
+                ->first();
+            
+            if ($existingLink) {
+                // Use existing token instead of generating new one
+                $token = $existingLink->token;
+                $magicLink = route('magic.login', ['token' => $token]);
+                
+                Log::info('Existing magic link retrieved', [
+                    'user_id' => $user->id,
+                    'expires_at' => $existingLink->expires_at
+                ]);
+
+                return back()->with([
+                    'success' => 'Your existing magic link is ready!',
+                    'magic_link' => $magicLink,
+                    'magic_link_expires_at' => $existingLink->expires_at
+                ]);
+            }
+            
+            // Generate new token only if no valid existing link
+            $token = Str::random(60);
+            $expiresAt = now()->addDays(30); // Changed from 24 hours to 30 days for better persistence
+            
+            // Store token in database
+            DB::table('magic_links')->updateOrInsert(
                 ['user_id' => $user->id],
                 [
                     'token' => $token,
-                    'expires_at' => now()->addHours(24),
+                    'expires_at' => $expiresAt,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]
@@ -499,15 +526,17 @@ public function destroyMusic()
 
             $magicLink = route('magic.login', ['token' => $token]);
             
-            Log::info('Magic link generated', [
+            Log::info('New magic link generated', [
                 'user_id' => $user->id,
-                'token' => $token
+                'expires_at' => $expiresAt
             ]);
 
             return back()->with([
                 'success' => 'Magic link generated! Copy and send it to your partner.',
-                'magic_link' => $magicLink
+                'magic_link' => $magicLink,
+                'magic_link_expires_at' => $expiresAt
             ]);
+            
         } catch (\Exception $e) {
             Log::error('Magic link generation failed', [
                 'error' => $e->getMessage(),
@@ -517,13 +546,103 @@ public function destroyMusic()
         }
     }
 
+      public function access()
+    {
+        $user = Auth::user();
+        
+        // Get or create magic link data using your model's methods
+        $magicLinkData = null;
+        if ($user->hasValidMagicLink()) {
+            $magicLinkData = $user->getMagicLinkData();
+        }
+        
+        return Inertia::render('ShareAccess', [
+            'auth' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'is_paid' => $user->is_paid,
+                    'magic_link' => $magicLinkData['link'] ?? null,
+                    'qr_code_url' => $user->qr_code_url,
+                    'magic_link_expires_at' => $user->login_token_expires_at,
+                    'days_remaining' => $magicLinkData['days_remaining'] ?? null,
+                    'has_link' => $magicLinkData['has_link'] ?? false,
+                ]
+            ]
+        ]);
+    }
+
+      /**
+     * NEW METHOD: Revoke magic link
+     */
+    public function revokeMagicLink(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            
+            DB::table('magic_links')
+                ->where('user_id', $user->id)
+                ->delete();
+            
+            Log::info('Magic link revoked', ['user_id' => $user->id]);
+            
+            return back()->with('success', 'Magic link revoked successfully. Anyone with the old link can no longer access your account.');
+            
+        } catch (\Exception $e) {
+            Log::error('Magic link revocation failed', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return back()->withErrors(['error' => 'Failed to revoke magic link.']);
+        }
+    }
+
+    /**
+     * NEW METHOD: Get current magic link status (for Inertia share)
+     */
+    public function getMagicLinkStatus()
+    {
+        $user = auth()->user();
+        
+        if (!$user || $user->is_paid === 0) {
+            return [
+                'has_magic_link' => false,
+                'magic_link' => null,
+                'expires_at' => null
+            ];
+        }
+        
+        $existingLink = DB::table('magic_links')
+            ->where('user_id', $user->id)
+            ->where('expires_at', '>', now())
+            ->first();
+        
+        if ($existingLink) {
+            return [
+                'has_magic_link' => true,
+                'magic_link' => route('magic.login', ['token' => $existingLink->token]),
+                'expires_at' => $existingLink->expires_at,
+                'days_remaining' => now()->diffInDays($existingLink->expires_at, false)
+            ];
+        }
+        
+        return [
+            'has_magic_link' => false,
+            'magic_link' => null,
+            'expires_at' => null
+        ];
+    }
+
+
+
     /**
      * Handle magic login
      */
-    public function magicLogin($token)
+     public function magicLogin($token)
     {
         try {
-            $magicLink = \DB::table('magic_links')
+            $magicLink = DB::table('magic_links')
                 ->where('token', $token)
                 ->where('expires_at', '>', now())
                 ->first();
@@ -537,22 +656,66 @@ public function destroyMusic()
             if ($user) {
                 auth()->login($user);
                 
-                // Delete used token
-                \DB::table('magic_links')->where('token', $token)->delete();
+                // DON'T delete the token - this allows the link to be reused
+                // Only delete if you want one-time use
+                // DB::table('magic_links')->where('token', $token)->delete();
                 
-                Log::info('Magic login successful', ['user_id' => $user->id]);
+                Log::info('Magic login successful', [
+                    'user_id' => $user->id,
+                    'token_used' => substr($token, 0, 8) . '...'
+                ]);
                 
                 // Redirect to partner view or dashboard
                 return redirect()->route('partner.view', ['user' => $user->id]);
             }
 
             return redirect('/')->withErrors(['error' => 'User not found.']);
+            
         } catch (\Exception $e) {
             Log::error('Magic login failed', [
                 'error' => $e->getMessage(),
-                'token' => $token
+                'token' => substr($token, 0, 8) . '...'
             ]);
             return redirect('/')->withErrors(['error' => 'Failed to process magic link.']);
         }
     }
+
+       public function extendMagicLink(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            
+            $updated = DB::table('magic_links')
+                ->where('user_id', $user->id)
+                ->update([
+                    'expires_at' => now()->addDays(30),
+                    'updated_at' => now()
+                ]);
+            
+            if ($updated) {
+                Log::info('Magic link extended', ['user_id' => $user->id]);
+                return back()->with('success', 'Magic link extended for another 30 days!');
+            }
+            
+            return back()->withErrors(['error' => 'No active magic link found.']);
+            
+        } catch (\Exception $e) {
+            Log::error('Magic link extension failed', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+            return back()->withErrors(['error' => 'Failed to extend magic link.']);
+        }
+    }
+
+    public function saveQRCode(Request $request)
+{
+    $user = Auth::user();
+    $user->magic_link = $request->magic_link;
+    $user->qr_code_url = $request->qr_code_url;
+    $user->save();
+    
+    return back()->with('success', 'QR code saved successfully!');
+}
+
 }
