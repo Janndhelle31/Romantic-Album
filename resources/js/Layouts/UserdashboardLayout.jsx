@@ -442,6 +442,35 @@ export default function UserdashboardLayout({ children }) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Social Media Follow Section with Humorous Note */}
+                            <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                                <p className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
+                                    <span>📢</span> Support us! (Or else... 😈)
+                                </p>
+                                <div className="flex gap-2">
+                                    <a 
+                                        href="https://www.facebook.com/LarkacerNexusIT" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                                    >
+                                        <span>📘</span> Facebook
+                                    </a>
+                                    <a 
+                                        href="https://www.instagram.com/larkacernexusit/" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium rounded hover:from-purple-600 hover:to-pink-600 transition-colors"
+                                    >
+                                        <span>📷</span> Instagram
+                                    </a>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 italic text-center">
+                                    Follow or your account gets deleted! (Just kidding... or am I? 👀)
+                                </p>
+                            </div>
+
                             <Link 
                                 href={safeRoute('logout')} 
                                 method="post" 

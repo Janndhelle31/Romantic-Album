@@ -9,7 +9,6 @@ import ThemeSelector from '@/Components/Design/ThemeSelector';
 import ThemeFeatures from '@/Components/Design/ThemeFeatures';
 import Header from '@/Components/Design/Header';
 import CurrentSettings from '@/Components/Design/CurrentSettings';
-import DebugInfo from '@/Components/Design/DebugInfo';
 import FrontPageSettings from '@/Components/Design/FrontPageSettings';
 
 const THEMES = [
@@ -379,13 +378,7 @@ export default function DesignSettings({
                             </div>
                         </div>
 
-                        <DebugInfo 
-                            selectedTheme={selectedTheme}
-                            settings={settings}
-                            auth={auth}
-                            themeLoading={themeLoading}
-                            userTheme={userTheme}
-                        />
+                     
 
                         <ThemeFeatures 
                             themes={THEMES}
