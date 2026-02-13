@@ -78,7 +78,8 @@ Route::delete('/music-settings', action: [UserDashboardController::class, 'destr
 Route::post('/save-qr-code', [UserDashboardController::class, 'saveQRCode'])->middleware('auth');
 
 Route::get('/manage/share-access', [UserDashboardController::class, 'access'])->name('share.access');
-
+Route::delete('/albums/{id}', [UserDashboardController::class, 'destroyAlbum'])
+    ->name('manage.album.destroy');
         
     // 7. SETTINGS ROUTES
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');

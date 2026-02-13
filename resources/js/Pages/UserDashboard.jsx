@@ -131,12 +131,22 @@ export default function UserDashboard({ albums }) {
             router.delete(route('manage.memory.destroy', id));
         }
     };
+const deleteAlbum = (id) => {
+    if (!confirm('Delete this album and all its memories? This cannot be undone.')) return;
 
-    const deleteAlbum = (id) => {
-        if (confirm('Delete this album and all its memories? This cannot be undone.')) {
-            router.delete(route('manage.album.destroy', id));
-        }
-    };
+    router.delete(`/albums/${id}`, {
+        onSuccess: () => {
+            alert('Album deleted successfully!');
+            // Optional: remove album from your state/UI here
+        },
+        onError: (errors) => {
+            console.error('Delete error:', errors);
+            if (errors.payment) alert(errors.payment);
+            else if (errors.error) alert(errors.error);
+            else alert('Failed to delete album: ' + JSON.stringify(errors));
+        },
+    });
+};
 
     return (
         <div className="max-w-screen-xl mx-auto px-4 pb-20">

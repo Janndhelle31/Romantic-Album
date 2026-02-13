@@ -239,42 +239,32 @@ class UserDashboardController extends Controller
         return back()->with('message', 'Memory updated! ✨');
     }
 
-    public function destroyAlbum(Album $album)
-    {
-        // Check payment status
-        if (auth()->user()->is_paid === 0) {
-            return back()->withErrors(['payment' => 'Please complete your ₱20 payment to manage albums.']);
-        }
+public function destroyAlbum($id)
+{
+    $album = Album::find($id);
 
-        if ($album->user_id !== auth()->id()) abort(403);
-
-        try {
-            foreach ($album->memories as $memory) {
-                // Delete original image
-                if ($memory->image_path && Storage::disk('public')->exists($memory->image_path)) {
-                    Storage::disk('public')->delete($memory->image_path);
-                }
-                
-                // Delete thumbnail
-                if ($memory->thumbnail_path && Storage::disk('public')->exists($memory->thumbnail_path)) {
-                    Storage::disk('public')->delete($memory->thumbnail_path);
-                }
-            }
-            
-            $album->delete();
-            Log::info('Album deleted', [
-                'album_id' => $album->id,
-                'memories_deleted' => $album->memories->count()
-            ]);
-            return back()->with('message', 'Album deleted successfully.');
-        } catch (\Exception $e) {
-            Log::error('Album deletion failed', [
-                'album_id' => $album->id,
-                'error' => $e->getMessage()
-            ]);
-            return back()->withErrors(['error' => 'Failed to delete album.']);
-        }
+    if (!$album) {
+        return back()->with('error', 'Album not found.');
     }
+
+    // Payment check
+    if (auth()->user()->is_paid === 0) {
+        return back()->with('error', 'Please complete your ₱20 payment to manage albums.');
+    }
+
+    // Ownership check
+    if ($album->user_id !== auth()->id()) {
+        abort(403);
+    }
+
+    // Delete related memories
+    $album->memories()->delete();
+
+    // Delete the album
+    $album->delete();
+
+    return back()->with('success', 'Album deleted successfully!');
+}
 
     public function destroyMemory(Memory $memory)
     {
