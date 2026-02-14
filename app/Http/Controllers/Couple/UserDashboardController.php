@@ -14,8 +14,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Encoders\WebpEncoder;
+
 use Illuminate\Support\Facades\DB;
 
 class UserDashboardController extends Controller
@@ -136,79 +135,64 @@ class UserDashboardController extends Controller
         }
     }
 
-    public function storeMemory(Request $request)
-    {
-        // Check payment status
-        if (auth()->user()->is_paid === 0) {
-            return back()->withErrors(['payment' => 'Please complete your ₱20 payment to add memories.']);
-        }
-
-        $request->validate([
-            'album_id' => 'required|exists:albums,id',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:15000',
-            'date_text' => 'required|string|max:30',
-            'note' => 'nullable|string|max:500',
-        ]);
-
-        $album = Album::where('id', $request->album_id)
-                      ->where('user_id', auth()->id())
-                      ->firstOrFail();
-
-        if ($album->memories()->count() >= self::MAX_MEMORIES_PER_ALBUM) {
-            return back()->withErrors(['album_id' => 'Maximum ' . self::MAX_MEMORIES_PER_ALBUM . ' memories reached.']);
-        }
-
-        try {
-            // Create directories
-            $baseDir = 'memories/' . date('Y/m');
-            Storage::disk('public')->makeDirectory($baseDir);
-            Storage::disk('public')->makeDirectory($baseDir . '/thumbs');
-            
-            // Initialize image manager
-            $imageManager = ImageManager::gd();
-            
-            // Process image
-            $image = $imageManager->read($request->file('image'));
-            
-            // Resize if too large (max 1920px width)
-            if ($image->width() > 1920) {
-                $image->scale(width: 1920);
-            }
-            
-            // Save original as WebP
-            $originalFilename = Str::random(20) . '.webp';
-            $originalPath = $baseDir . '/' . $originalFilename;
-            Storage::disk('public')->put($originalPath, $image->encode(new WebpEncoder(quality: 80)));
-            
-            // Create thumbnail (400px width)
-            $thumbnail = $imageManager->read($request->file('image'));
-            $thumbnail->scale(width: 400);
-            
-            $thumbnailFilename = Str::random(20) . '.webp';
-            $thumbnailPath = $baseDir . '/thumbs/' . $thumbnailFilename;
-            Storage::disk('public')->put($thumbnailPath, $thumbnail->encode(new WebpEncoder(quality: 75)));
-
-            Memory::create([
-                'album_id' => $album->id,
-                'image_path' => $originalPath,
-                'thumbnail_path' => $thumbnailPath,
-                'date_text' => $request->date_text,
-                'note' => $request->note,
-                'rotation' => rand(-4, 4),
-            ]);
-
-            Log::info('Memory stored with thumbnail', [
-                'album_id' => $album->id,
-                'original' => $originalPath,
-                'thumbnail' => $thumbnailPath
-            ]);
-            return back()->with('message', 'Memory saved! 📸');
-        } catch (\Exception $e) {
-            Log::error('Memory storage failed', ['error' => $e->getMessage()]);
-            return back()->withErrors(['image' => 'Failed to upload image.']);
-        }
+ public function storeMemory(Request $request)
+{
+    // Check payment status
+    if (auth()->user()->is_paid === 0) {
+        return back()->withErrors(['payment' => 'Please complete your ₱20 payment to add memories.']);
     }
 
+    $request->validate([
+        'album_id' => 'required|exists:albums,id',
+        'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:15000',
+        'date_text' => 'required|string|max:30',
+        'note' => 'nullable|string|max:500',
+    ]);
+
+    $album = Album::where('id', $request->album_id)
+                  ->where('user_id', auth()->id())
+                  ->firstOrFail();
+
+    if ($album->memories()->count() >= self::MAX_MEMORIES_PER_ALBUM) {
+        return back()->withErrors(['album_id' => 'Maximum ' . self::MAX_MEMORIES_PER_ALBUM . ' memories reached.']);
+    }
+
+    try {
+        // Create directories
+        $baseDir = 'memories/' . date('Y/m');
+        Storage::disk('public')->makeDirectory($baseDir);
+        Storage::disk('public')->makeDirectory($baseDir . '/thumbs');
+
+        // Store original image as is (without any processing)
+        $originalFilename = Str::random(20) . '.' . $request->file('image')->getClientOriginalExtension();
+        $originalPath = $request->file('image')->storeAs($baseDir, $originalFilename, 'public');
+
+        // Use the same image as thumbnail (no thumbnail generation)
+        // This means the thumbnail path will be the same as the original
+        $thumbnailPath = $originalPath;
+
+        // Save record in DB
+        Memory::create([
+            'album_id' => $album->id,
+            'image_path' => $originalPath,
+            'thumbnail_path' => $thumbnailPath, // Same as original
+            'date_text' => $request->date_text,
+            'note' => $request->note,
+            'rotation' => rand(-4, 4),
+        ]);
+
+        Log::info('Memory stored', [
+            'album_id' => $album->id,
+            'original' => $originalPath,
+        ]);
+
+        return back()->with('message', 'Memory saved! 📸');
+
+    } catch (\Exception $e) {
+        Log::error('Memory storage failed', ['error' => $e->getMessage()]);
+        return back()->withErrors(['image' => 'Failed to upload image.']);
+    }
+}
     public function updateMemory(Request $request, Memory $memory)
     {
         // Check payment status
